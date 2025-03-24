@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Browser Recorder",
+  "version": "1.0.0",
+  "description": "Record and replay browser interactions",
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/recorder.js",
+        "content/player.js",
+        "lib/event-types.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

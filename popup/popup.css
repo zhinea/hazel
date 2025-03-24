@@ -1,0 +1,219 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    width: 350px;
+    overflow-x: hidden;
+}
+
+.container {
+    padding: 16px;
+}
+
+header {
+    margin-bottom: 16px;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 8px;
+}
+
+h1 {
+    font-size: 18px;
+    color: #2c3e50;
+}
+
+h2 {
+    font-size: 16px;
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.controls-section {
+    margin-bottom: 20px;
+}
+
+#recording-name {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #dcdcdc;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.button-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    border: none;
+    outline: none;
+    transition: background 0.2s ease-in-out;
+}
+
+.primary-btn {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.primary-btn:hover {
+    background-color: #c0392b;
+}
+
+.primary-btn:disabled {
+    background-color: #f5b8b1;
+    cursor: not-allowed;
+}
+
+.secondary-btn {
+    background-color: #ecf0f1;
+    color: #34495e;
+}
+
+.secondary-btn:hover {
+    background-color: #dfe6e9;
+}
+
+.secondary-btn:disabled {
+    color: #95a5a6;
+    cursor: not-allowed;
+}
+
+.record-icon {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background-color: currentColor;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+.stop-icon {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background-color: currentColor;
+    margin-right: 6px;
+}
+
+.status {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    color: #7f8c8d;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #95a5a6;
+    margin-right: 8px;
+}
+
+.status.recording .status-indicator {
+    background-color: #e74c3c;
+    animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
+.recordings-section {
+    margin-top: 16px;
+    border-top: 1px solid #e0e0e0;
+    padding-top: 16px;
+}
+
+.empty-state {
+    color: #95a5a6;
+    font-style: italic;
+    margin: 16px 0;
+    text-align: center;
+    font-size: 14px;
+}
+
+#recordings-container {
+    list-style: none;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.recording-item {
+    padding: 10px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.recording-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.recording-name {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 14px;
+}
+
+.recording-date {
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-top: 2px;
+}
+
+.recording-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #3498db;
+    font-size: 13px;
+    padding: 4px 8px;
+}
+
+.action-btn:hover {
+    text-decoration: underline;
+}
+
+.action-btn.delete {
+    color: #e74c3c;
+}
+
+.settings-link {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 13px;
+}
+
+.settings-link a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.settings-link a:hover {
+    text-decoration: underline;
+}

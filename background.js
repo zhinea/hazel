@@ -1,0 +1,276 @@
+// background.js - Manages recording sessions and communication
+
+// Global state
+let isRecording = false;
+let currentRecordingId = null;
+let currentTabId = null;
+
+let player = {
+    isPlaying: false,
+    recordingId: null,
+    events: [],
+    currentEventIndex: 0,
+    playbackSpeed: 1.0, // 1.0 is normal speed
+    lastPlaybackTime: 0,
+    eventTimeoutId: null,
+
+    // Current playback status (for UI)
+    playbackStatus: {
+        totalEvents: 0,
+        currentEvent: 0,
+        progress: 0,
+        state: 'idle' // idle, playing, paused, complete, error
+    }
+}
+
+// Listen for messages from popup or content scripts
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log('Background received message:', message, 'from:', sender?.tab?.id || 'popup');
+
+    try {
+        if (message.action === 'startRecording') {
+            startRecording(message.tabId, message.recordingName);
+            sendResponse({ success: true, recordingId: currentRecordingId });
+        }
+        else if (message.action === 'stopRecording') {
+            stopRecording();
+            sendResponse({ success: true });
+        }
+        else if (message.action === 'getRecordingStatus') {
+            sendResponse({
+                isRecording,
+                currentRecordingId,
+                currentTabId
+            });
+        }
+        else if (message.action === 'playRecording') {
+            playRecording(message.recordingId, message.tabId);
+            sendResponse({ success: true });
+        }
+        else if (message.action === 'saveEvent') {
+            saveRecordedEvent(message.event);
+            sendResponse({ success: true });
+        }
+        else if (message.action === 'clearAllRecordings') {
+            // Handle clear all recordings request from settings
+            chrome.storage.local.get(null, (data) => {
+                const keys = Object.keys(data).filter(key =>
+                    key.startsWith('rec_') || key === 'browserRecorder_index'
+                );
+
+                if (keys.length > 0) {
+                    chrome.storage.local.remove(keys, () => {
+                        sendResponse({ success: true });
+                    });
+                } else {
+                    sendResponse({ success: true, message: 'No recordings to clear' });
+                }
+            });
+            return true; // Will respond asynchronously
+        }
+        else {
+            console.warn('Unknown action received:', message.action);
+            sendResponse({ success: false, error: 'Unknown action' });
+        }
+    } catch (error) {
+        console.error('Error handling message:', error);
+        sendResponse({ success: false, error: error.message });
+    }
+
+    return true; // Keep the message channel open for async responses
+});
+
+// Start recording on a specific tab
+function startRecording(tabId, recordingName) {
+    if (isRecording) {
+        stopRecording();
+    }
+
+    currentRecordingId = generateRecordingId();
+    currentTabId = tabId;
+    isRecording = true;
+
+    console.log('Starting a new recording:', currentRecordingId, 'on tab', tabId);
+
+    // Initialize storage for this recording
+    const recordingData = {
+        id: currentRecordingId,
+        name: recordingName || `Recording ${new Date().toLocaleString()}`,
+        timestamp: Date.now(),
+        events: [], // Make sure this is initialized as an empty array
+        tabUrl: ''
+    };
+
+    // Get the URL of the tab we're recording
+    chrome.tabs.get(tabId, (tab) => {
+        recordingData.tabUrl = tab.url;
+
+        // Save initial recording data
+        chrome.storage.local.set({ [currentRecordingId]: recordingData }, () => {
+            if (chrome.runtime.lastError) {
+                console.error('Error creating recording:', chrome.runtime.lastError);
+            } else {
+                console.log('Started recording:', currentRecordingId, 'with initial data:', recordingData);
+            }
+
+            // Notify content script to start recording
+            chrome.tabs.sendMessage(tabId, {
+                action: 'startRecordingInContent',
+                recordingId: currentRecordingId
+            }, response => {
+                if (chrome.runtime.lastError) {
+                    console.error('Error sending start recording message:', chrome.runtime.lastError);
+                } else {
+                    console.log('Start recording message sent to content script, response:', response);
+                }
+            });
+        });
+    });
+}
+
+// Stop the current recording
+function stopRecording() {
+    if (!isRecording) return;
+
+    if (currentTabId) {
+        // Notify content script to stop recording
+        chrome.tabs.sendMessage(currentTabId, {
+            action: 'stopRecordingInContent',
+            recordingId: currentRecordingId
+        });
+    }
+
+    isRecording = false;
+    currentTabId = null;
+    currentRecordingId = null;
+
+    console.log('Stopped recording');
+}
+
+// Play a recording on a specific tab
+function playRecording(recordingId, tabId) {
+    console.log('Background script: Starting playback of recording', recordingId, 'on tab', tabId);
+
+
+
+
+    // First, check if the tab exists and is valid
+    chrome.tabs.get(tabId, (tab) => {
+        if (chrome.runtime.lastError) {
+            console.error('Error accessing tab:', chrome.runtime.lastError);
+            return;
+        }
+
+        // Check if this is a restricted URL (chrome://, chrome-extension://, etc.)
+        if (tab.url.startsWith('chrome://') ||
+            tab.url.startsWith('chrome-extension://') ||
+            tab.url.startsWith('devtools://')) {
+            console.error('Cannot play recordings on restricted URLs:', tab.url);
+            // Could show a notification here
+            return;
+        }
+
+        if(player.isPlaying){
+            // let stopping
+        }
+
+        // Fetch the recording data
+        chrome.storage.local.get(recordingId, (result) => {
+            if (!result[recordingId]) {
+                console.error('Recording not found:', recordingId);
+                return;
+            }
+
+            const recordingData = result[recordingId];
+            console.log('Recording data loaded:', recordingData);
+
+            // Validate recording data
+            if (!recordingData.events || !Array.isArray(recordingData.events)) {
+                console.error('Invalid recording format. Missing events array:', recordingData);
+                return;
+            }
+
+            if (recordingData.events.length === 0) {
+                console.error('Recording has no events:', recordingData);
+                return;
+            }
+
+            // Make sure content script is injected before sending message
+            chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                files: ['content/player-new.js']
+            }, () => {
+                if (chrome.runtime.lastError) {
+                    console.error('Error injecting script:', chrome.runtime.lastError);
+                    return;
+                }
+
+                // Wait a moment for script to initialize
+                setTimeout(() => {
+                    // Play in the specified tab
+                    chrome.tabs.sendMessage(tabId, {
+                        action: 'playRecordingInContent',
+                        recordingId: recordingId,
+                        recordingData: recordingData
+                    }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            console.error('Error sending message to tab:', chrome.runtime.lastError);
+                        } else {
+                            console.log('Playback message sent to tab, response:', response);
+                        }
+                    });
+                }, 500);
+            });
+        });
+    });
+}
+
+// Save a recorded event to storage
+function saveRecordedEvent(event) {
+    if (!isRecording || !currentRecordingId) {
+        console.error('Cannot save event: No active recording');
+        return;
+    }
+
+    console.log('Saving event to recording:', event);
+
+    chrome.storage.local.get(currentRecordingId, (result) => {
+        if (!result[currentRecordingId]) {
+            console.error('Recording not found:', currentRecordingId);
+            return;
+        }
+
+        const recordingData = result[currentRecordingId];
+
+        // Initialize events array if it doesn't exist
+        if (!recordingData.events) {
+            recordingData.events = [];
+        }
+
+        // Add the event
+        recordingData.events.push(event);
+
+        console.log(`Added event to recording. Total events: ${recordingData.events.length}`);
+
+        // Save back to storage
+        chrome.storage.local.set({ [currentRecordingId]: recordingData }, () => {
+            if (chrome.runtime.lastError) {
+                console.error('Error saving event:', chrome.runtime.lastError);
+            } else {
+                console.log('Event saved successfully to recording', currentRecordingId);
+            }
+        });
+    });
+}
+
+// Generate a unique ID for a recording
+function generateRecordingId() {
+    return 'rec_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+}
+
+// Listen for tab close events to stop recording if needed
+chrome.tabs.onRemoved.addListener((tabId) => {
+    if (isRecording && tabId === currentTabId) {
+        stopRecording();
+    }
+});
