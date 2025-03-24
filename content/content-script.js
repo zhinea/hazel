@@ -33,7 +33,10 @@ if (window.location.protocol === 'chrome:') {
 
     // Listen for messages from the background script
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if(message.action.startsWith('hazel_player')) return;
         console.log('Content script received message:', message);
+
+
 
         try {
             switch (message.action) {
@@ -44,11 +47,6 @@ if (window.location.protocol === 'chrome:') {
 
                 case 'stopRecordingInContent':
                     stopRecording();
-                    sendResponse({ success: true });
-                    break;
-
-                case 'playRecordingInContent':
-                    playRecording(message.recordingId, message.recordingData).then(r => {});
                     sendResponse({ success: true });
                     break;
 
@@ -71,7 +69,7 @@ if (window.location.protocol === 'chrome:') {
 
                 default:
                     console.log('Unknown action:', message.action);
-                    sendResponse({ success: false, error: 'Unknown action' });
+                    sendResponse({ success: false, error: 'Unknown action', hell:'nah' });
             }
         } catch (error) {
             console.error('Error handling message:', error);
@@ -165,95 +163,6 @@ if (window.location.protocol === 'chrome:') {
             action: 'stopRecording',
             timestamp: Date.now()
         });
-    }
-
-    // Modified playRecording function that accepts an additional parameter to indicate continuing after navigation
-    async function playRecording(recordingId, recordingData, isContinuation = false) {
-        console.log('Starting playback in content script', recordingId, recordingData);
-
-        // Check if we have valid data
-        if (!recordingData || !Array.isArray(recordingData.events) || recordingData.events.length === 0) {
-            console.error('Invalid recording data:', recordingData);
-            return;
-        }
-
-        // Only inject the player script once
-        if (!player) {
-            try {
-                // Create a script tag for the player
-                const script = document.createElement('script');
-                script.src = chrome.runtime.getURL('content/player.js');
-
-                // Wait for script to load
-                await new Promise((resolve, reject) => {
-                    script.onload = resolve;
-                    script.onerror = reject;
-                    (document.head || document.documentElement).appendChild(script);
-                });
-
-                console.log('Player script injected successfully');
-
-                // Create a communication channel with the injected script
-                player = {
-                    postMessage: (message) => {
-                        console.log('Sending message to player:', message);
-                        window.dispatchEvent(new CustomEvent('BrowserRecorder_Player_ToPage', {
-                            detail: message
-                        }));
-                    },
-                    onMessage: (callback) => {
-                        window.addEventListener('BrowserRecorder_Player_FromPage', (event) => {
-                            console.log('Received message from player:', event.detail);
-                            callback(event.detail);
-                        });
-                    }
-                };
-
-                // Listen for events from the player script
-                player.onMessage((message) => {
-                    if (message.action === 'playbackComplete') {
-                        console.log('Playback completed');
-                    } else if (message.action === 'playbackError') {
-                        console.error('Playback error:', message.error);
-                    } else if (message.action === 'playbackStatus') {
-                        console.log('Playback status:', message.status);
-                    } else if (message.action === 'navigateBeforePlayback') {
-                        // Forward navigation requests to background script
-                        chrome.runtime.sendMessage({
-                            action: 'navigateBeforePlayback',
-                            url: message.url,
-                            recordingId: message.recordingId
-                        }, (response) => {
-                            console.log('Navigation request sent to background, response:', response);
-                        });
-                    }
-                });
-            } catch (error) {
-                console.error('Error injecting player script:', error);
-                return;
-            }
-        }
-
-        // Start playback with a delay to ensure the player is ready
-        setTimeout(() => {
-            console.log('Sending playback command to player script');
-
-            if (isContinuation) {
-                player.postMessage({
-                    action: 'continueAfterNavigation',
-                    recordingId: recordingId,
-                    events: recordingData.events,
-                    timestamp: Date.now()
-                });
-            } else {
-                player.postMessage({
-                    action: 'startPlayback',
-                    recordingId: recordingId,
-                    events: recordingData.events,
-                    timestamp: Date.now()
-                });
-            }
-        }, 300);
     }
 
     // Notify that the content script is ready

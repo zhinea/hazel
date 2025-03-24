@@ -5,7 +5,8 @@ let isRecording = false;
 let currentRecordingId = null;
 let currentTabId = null;
 
-let player = {
+
+const FRESH_PLAYER = {
     isPlaying: false,
     recordingId: null,
     events: [],
@@ -22,6 +23,10 @@ let player = {
         state: 'idle' // idle, playing, paused, complete, error
     }
 }
+
+const copyVar = (obj) => JSON.parse(JSON.stringify(obj))
+
+let player = copyVar(FRESH_PLAYER)
 
 // Listen for messages from popup or content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -151,9 +156,6 @@ function stopRecording() {
 function playRecording(recordingId, tabId) {
     console.log('Background script: Starting playback of recording', recordingId, 'on tab', tabId);
 
-
-
-
     // First, check if the tab exists and is valid
     chrome.tabs.get(tabId, (tab) => {
         if (chrome.runtime.lastError) {
@@ -205,21 +207,88 @@ function playRecording(recordingId, tabId) {
                     return;
                 }
 
-                // Wait a moment for script to initialize
-                setTimeout(() => {
-                    // Play in the specified tab
-                    chrome.tabs.sendMessage(tabId, {
-                        action: 'playRecordingInContent',
-                        recordingId: recordingId,
-                        recordingData: recordingData
-                    }, (response) => {
-                        if (chrome.runtime.lastError) {
-                            console.error('Error sending message to tab:', chrome.runtime.lastError);
-                        } else {
-                            console.log('Playback message sent to tab, response:', response);
+                chrome.tabs.sendMessage(tabId, {
+                    action: 'hazel_player_initializePlayback',
+                    recordingId
+                },  (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.error('Error sending message to tab:', chrome.runtime.lastError);
+                    } else {
+                        console.log('Playback message sent to tab, response:', response);
+                    }
+
+                    console.log(response)
+
+                    if(!response.success){
+                        console.log('Failed to initialize playback')
+                        player = copyVar(FRESH_PLAYER)
+                        return;
+                    }
+
+                    player.isPlaying = true;
+                    player.recordingId = recordingId;
+                    // deep copy and sort events
+                    player.events = copyVar(recordingData.events)
+                        .sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+
+                    player.playbackStatus.totalEvents = recordingData.events.length;
+
+
+                    const sendPlayback = () => {
+                        if(!player.isPlaying || player.currentEventIndex >= player.events.length){
+                            console.log('Playback complete or stopped')
+                            player = copyVar(FRESH_PLAYER)
+                            return;
                         }
-                    });
-                }, 500);
+
+                        player.playbackStatus.state = 'playing';
+
+                        const event = player.events[player.currentEventIndex];
+                        console.log(`Playing event ${player.currentEventIndex + 1}/${player.events.length}:`, event);
+
+                        chrome.tabs.sendMessage(tabId, {
+                            action: 'hazel_player_executeEvent',
+                            data: {
+                                event,
+                                recordingId: player.recordingId,
+                                playbackSpeed: player.playbackSpeed
+                            }
+                        }, response => {
+                            catchError(response)
+
+                            if(!response.success){
+                                console.log('Gagal play event')
+                                return;
+                            }
+
+                            // Calculate delay for next event
+                            let delay = 100; // Increased minimum delay for more stability
+
+                            if (player.currentEventIndex < player.events.length - 1) {
+                                const nextEvent = player.events[player.currentEventIndex + 1];
+                                // Use timestamp if available, otherwise use default delay
+                                if (event.timestamp && nextEvent.timestamp) {
+                                    delay = Math.max(100, (nextEvent.timestamp - event.timestamp) / player.playbackSpeed);
+                                }
+                                if(delay <= 0){
+                                    delay = 100;
+                                }
+                            }
+                            setTimeout(() => {
+                                player.currentEventIndex++;
+                                player.playbackStatus.currentEvent = player.currentEventIndex;
+                                sendPlayback()
+                            }, delay);
+                        });
+
+                    }
+
+                    sendPlayback()
+
+
+
+                });
+
             });
         });
     });
@@ -266,6 +335,14 @@ function saveRecordedEvent(event) {
 // Generate a unique ID for a recording
 function generateRecordingId() {
     return 'rec_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+}
+
+function catchError(response){
+    if (chrome.runtime.lastError) {
+        console.error('Error sending message to tab:', chrome.runtime.lastError);
+    } else {
+        console.log('Playback message sent to tab, response:', response);
+    }
 }
 
 // Listen for tab close events to stop recording if needed

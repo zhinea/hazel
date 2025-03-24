@@ -199,9 +199,9 @@
     // Handle mouse events
     function handleMouseEvent(event) {
         if (!isRecording || !shouldRecordEvent()) return;
-
         // Find the target element's selector for replaying
-        const selector = getElementSelector(event.target);
+        const selector = generateSelector(event.target);
+        console.log(selector, event.target)
         if (!selector) return;
 
         const eventData = {
@@ -315,6 +315,45 @@
     }
 
     // Utility functions
+    function generateSelector(context) {
+        let index, pathSelector;
+
+        if (!context) throw "not a dom reference";
+
+        // if the node is an SVG element, use its parent instead
+        if (context.tagName && context.tagName.toLowerCase() === 'svg') {
+            context = context.parentNode;
+        }
+
+        // call getIndex function
+        index = getIndex(context);
+
+        while (context.tagName) {
+            // build the selector path
+            pathSelector = context.localName + (pathSelector ? ">" + pathSelector : "");
+            context = context.parentNode;
+        }
+        // append nth-of-type to the last element
+        pathSelector = pathSelector + `:nth-of-type(${index})`;
+        return pathSelector;
+    }
+
+    function getIndex(node) {
+        let i = 1;
+        let tagName = node.tagName;
+
+        while (node.previousSibling) {
+            node = node.previousSibling;
+            if (
+                node.nodeType === 1 &&
+                tagName.toLowerCase() === node.tagName.toLowerCase()
+            ) {
+                i++;
+            }
+        }
+        return i;
+    }
+
 
     // Create a unique selector for an element
     function getElementSelector(element) {
