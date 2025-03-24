@@ -7,7 +7,8 @@ if (window.location.protocol === 'chrome:') {
 } else {
     // Initialize for normal webpages
     let recorder = null;
-    let player = null;  
+    let player = null;
+    let recordedEvents = [];
 
     // Listen for messages from the player script (needs to be outside the other listener)
     window.addEventListener('BrowserRecorder_Player_FromPage', (event) => {
@@ -31,12 +32,57 @@ if (window.location.protocol === 'chrome:') {
         // Handle other message types from player as needed
     });
 
+    // Listen for messages from the recorder or toolbar
+    window.addEventListener('BrowserRecorder_FromPage', (event) => {
+        const message = event.detail;
+
+        // Handle toolbar actions
+        if (message.action === 'pauseRecording') {
+            // Forward to background script
+            chrome.runtime.sendMessage({
+                action: 'pauseRecording'
+            });
+
+            // Forward to recorder script
+            if (recorder) {
+                recorder.postMessage({
+                    action: 'pauseRecording'
+                });
+            }
+        }
+        else if (message.action === 'resumeRecording') {
+            // Forward to background script
+            chrome.runtime.sendMessage({
+                action: 'resumeRecording'
+            });
+
+            // Forward to recorder script
+            if (recorder) {
+                recorder.postMessage({
+                    action: 'resumeRecording'
+                });
+            }
+        }
+        else if (message.action === 'stopRecording') {
+            // Forward to background script
+            chrome.runtime.sendMessage({
+                action: 'stopRecording'
+            });
+
+            // Forward to recorder script
+            if (recorder) {
+                recorder.postMessage({
+                    action: 'stopRecording'
+                });
+            }
+        }
+        // The event handling is kept in the recorder.onMessage callback
+    });
+
     // Listen for messages from the background script
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if(message.action.startsWith('hazel_player')) return;
         console.log('Content script received message:', message);
-
-
 
         try {
             switch (message.action) {
@@ -47,6 +93,16 @@ if (window.location.protocol === 'chrome:') {
 
                 case 'stopRecordingInContent':
                     stopRecording();
+                    sendResponse({ success: true });
+                    break;
+
+                case 'pauseRecordingInContent':
+                    pauseRecording();
+                    sendResponse({ success: true });
+                    break;
+
+                case 'resumeRecordingInContent':
+                    resumeRecording();
                     sendResponse({ success: true });
                     break;
 
@@ -79,9 +135,35 @@ if (window.location.protocol === 'chrome:') {
         return true; // Keep message channel open for async response
     });
 
+    // Utility function to inject a script
+    async function injectScript(scriptName) {
+        if (document.getElementById(`browser-recorder-${scriptName}`)) {
+            return; // Script already injected
+        }
+
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.id = `browser-recorder-${scriptName}`;
+            script.src = chrome.runtime.getURL(`content/${scriptName}`);
+            script.onload = resolve;
+            script.onerror = reject;
+            (document.head || document.documentElement).appendChild(script);
+        });
+    }
+
     // Start recording user actions
     async function startRecording(recordingId) {
         console.log('Starting recording in content script:', recordingId);
+
+        // Reset recorded events
+        recordedEvents = [];
+
+        try {
+            // First inject the toolbar script
+            await injectScript('recording-toolbar.js');
+        } catch (error) {
+            console.error('Error injecting toolbar script:', error);
+        }
 
         // Only inject the recorder script once
         if (!recorder) {
@@ -112,8 +194,18 @@ if (window.location.protocol === 'chrome:') {
                     },
                     onMessage: (callback) => {
                         window.addEventListener('BrowserRecorder_FromPage', (event) => {
-                            console.log('Received message from recorder:', event.detail);
-                            callback(event.detail);
+                            const eventData = event.detail;
+
+                            // Only process events with type property (recording events)
+                            if (eventData.type) {
+                                console.log('Received message from recorder:', eventData);
+
+                                // Save to local array
+                                recordedEvents.push(eventData);
+
+                                // Forward to callback for further processing
+                                callback(eventData);
+                            }
                         });
                     }
                 };
@@ -141,6 +233,13 @@ if (window.location.protocol === 'chrome:') {
 
         // Give the recorder script a moment to initialize
         setTimeout(() => {
+            // Show the toolbar
+            window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
+                detail: {
+                    action: 'showRecordingToolbar'
+                }
+            }));
+
             // Tell the recorder to start recording
             console.log('Sending start recording command to page');
             recorder.postMessage({
@@ -149,6 +248,34 @@ if (window.location.protocol === 'chrome:') {
                 timestamp: Date.now()
             });
         }, 300);
+    }
+
+    // Pause recording
+    function pauseRecording() {
+        if (!recorder) {
+            console.log('Recorder not initialized, cannot pause');
+            return;
+        }
+
+        console.log('Pausing recording');
+        recorder.postMessage({
+            action: 'pauseRecording',
+            timestamp: Date.now()
+        });
+    }
+
+    // Resume recording
+    function resumeRecording() {
+        if (!recorder) {
+            console.log('Recorder not initialized, cannot resume');
+            return;
+        }
+
+        console.log('Resuming recording');
+        recorder.postMessage({
+            action: 'resumeRecording',
+            timestamp: Date.now()
+        });
     }
 
     // Function to safely stop recording
@@ -163,6 +290,22 @@ if (window.location.protocol === 'chrome:') {
             action: 'stopRecording',
             timestamp: Date.now()
         });
+
+        // Hide the toolbar
+        window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
+            detail: {
+                action: 'hideRecordingToolbar'
+            }
+        }));
+    }
+
+    // This is kept for compatibility with your existing code
+    // Modified playRecording function for navigation continuation
+    async function playRecording(recordingId, recordingData, isContinuation = false) {
+        console.log('Starting playback in content script', recordingId, recordingData);
+
+        // Rest of your playback logic would go here
+        // This is just a stub since you're using player-new.js instead
     }
 
     // Notify that the content script is ready

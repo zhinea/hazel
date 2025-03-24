@@ -4,7 +4,7 @@
 let isRecording = false;
 let currentRecordingId = null;
 let currentTabId = null;
-
+let isPaused = false;
 
 const FRESH_PLAYER = {
     isPlaying: false,
@@ -41,9 +41,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             stopRecording();
             sendResponse({ success: true });
         }
+        else if (message.action === 'pauseRecording') {
+            pauseRecording();
+            sendResponse({ success: true });
+        }
+        else if (message.action === 'resumeRecording') {
+            resumeRecording();
+            sendResponse({ success: true });
+        }
         else if (message.action === 'getRecordingStatus') {
             sendResponse({
                 isRecording,
+                isPaused,
                 currentRecordingId,
                 currentTabId
             });
@@ -293,11 +302,41 @@ function playRecording(recordingId, tabId) {
         });
     });
 }
+// Add these new functions for pausing and resuming
+function pauseRecording() {
+    if (!isRecording || isPaused) return;
 
-// Save a recorded event to storage
+    isPaused = true;
+    console.log('Recording paused');
+
+    if (currentTabId) {
+        // Notify content script about pause
+        chrome.tabs.sendMessage(currentTabId, {
+            action: 'pauseRecordingInContent',
+            recordingId: currentRecordingId
+        });
+    }
+}
+
+function resumeRecording() {
+    if (!isRecording || !isPaused) return;
+
+    isPaused = false;
+    console.log('Recording resumed');
+
+    if (currentTabId) {
+        // Notify content script about resume
+        chrome.tabs.sendMessage(currentTabId, {
+            action: 'resumeRecordingInContent',
+            recordingId: currentRecordingId
+        });
+    }
+}
+
+// Modify the saveRecordedEvent function to respect the pause state
 function saveRecordedEvent(event) {
-    if (!isRecording || !currentRecordingId) {
-        console.error('Cannot save event: No active recording');
+    if (!isRecording || isPaused || !currentRecordingId) {
+        console.error('Cannot save event: No active recording or recording is paused');
         return;
     }
 
@@ -326,7 +365,7 @@ function saveRecordedEvent(event) {
             if (chrome.runtime.lastError) {
                 console.error('Error saving event:', chrome.runtime.lastError);
             } else {
-                console.log('Event saved successfully to recording', currentRecordingId);
+                console.log('Event saved successfully to recording', currentRecordingId, event.type);
             }
         });
     });

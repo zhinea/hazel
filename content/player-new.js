@@ -1,22 +1,19 @@
+// player-new.js
 if(window.location.protocol === 'chrome:'){
     console.log('Tab not supported')
 }else{
     chrome.runtime.onMessage.addListener( (message, sender, sendResponse) => {
         console.log('Player received message:', message)
 
-        console.log(message.action)
-
         try {
             switch (message.action) {
                 case 'hazel_player_initializePlayback':
-                    console.log('Diisini')
                     sendResponse({
                         success: true,
                         t: Date.now()
                     })
                     break;
                 case 'hazel_player_executeEvent':
-                    console.log('Executed')
                     executeEvent(message.data.event)
                     sendResponse({
                         success: true
@@ -27,7 +24,6 @@ if(window.location.protocol === 'chrome:'){
 
             }
         }catch (err){
-            console.log('Kerah')
             console.error('Error handling player message:', err)
             sendResponse({ success: false, error: err.message })
         }

@@ -29,8 +29,9 @@
     {
       "resources": [
         "content/recorder.js",
-        "content/player.js",
-        "lib/event-types.js"
+        "lib/event-types.js",
+        "content/player-new.js",
+        "content/recording-toolbar.js"
       ],
       "matches": ["<all_urls>"]
     }

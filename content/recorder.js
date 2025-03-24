@@ -4,6 +4,7 @@
 
     // State
     let isRecording = false;
+    let isPaused = false;
     let recordingId = null;
     let eventSequence = 0;
     let lastEvent = null;
@@ -45,6 +46,14 @@
                 stopRecording();
                 break;
 
+            case 'pauseRecording':
+                pauseRecording();
+                break;
+
+            case 'resumeRecording':
+                resumeRecording();
+                break;
+
             default:
                 console.warn('Unknown action received by recorder:', message.action);
         }
@@ -58,6 +67,16 @@
         }));
     }
 
+    const runAll = (fns) => {
+        if (fns.length === 0) return;
+        console.log(fns, fns.length)
+        setTimeout(() => {
+            fns.shift()();
+            runAll(fns);
+        }, 100);
+    };
+
+
     // Start recording user interactions
     function startRecording(id) {
         if (isRecording) {
@@ -67,24 +86,21 @@
         console.log('Recording started with ID:', id);
         recordingId = id;
         isRecording = true;
+        isPaused = false;
         eventSequence = 0;
 
-        // Record initial page state
-
-        // Set up event listeners
-        setupEventListeners();
-
-        // Send confirmation to content script
-        sendToContentScript({
-            type: 'recordingStatus',
-            status: 'started',
-            recordingId: recordingId,
-            timestamp: Date.now(),
-            sequence: eventSequence++
-        });
-
-        recordInitialState();
-
+        runAll([
+            recordInitialState,
+            () => sendToContentScript({
+                type: 'recordingStatus',
+                status: 'started',
+                recordingId: recordingId,
+                timestamp: Date.now(),
+                sequence: eventSequence++
+            }),
+            injectToolbar,
+            setupEventListeners
+        ]);
 
         // Create a synthetic test event to verify the recording pipeline
         setTimeout(() => {
@@ -100,6 +116,69 @@
         }, 1000);
     }
 
+    // Inject the recording toolbar
+    function injectToolbar() {
+        // Check if toolbar script is already injected
+        if (!document.getElementById('browser-recorder-toolbar-script')) {
+            // Inject the toolbar script
+            // const script = document.createElement('script');
+            // script.id = 'browser-recorder-toolbar-script';
+            // script.src = chrome?.runtime?.getURL('content/recording-toolbar.js');
+            // (document.head || document.documentElement).appendChild(script);
+            //
+            // // Wait for script to load
+            // script.onload = function() {
+            //     // Show the toolbar
+            //     window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
+            //         detail: {
+            //             action: 'showRecordingToolbar'
+            //         }
+            //     }));
+            // };
+        } else {
+            // Script already injected, just show the toolbar
+            window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
+                detail: {
+                    action: 'showRecordingToolbar'
+                }
+            }));
+        }
+    }
+
+    // Pause recording
+    function pauseRecording() {
+        if (!isRecording || isPaused) return;
+
+        isPaused = true;
+        console.log('Recording paused');
+
+        // Send status to content script
+        sendToContentScript({
+            type: 'recordingStatus',
+            status: 'paused',
+            recordingId: recordingId,
+            timestamp: Date.now(),
+            sequence: eventSequence++
+        });
+    }
+
+    // Resume recording
+    function resumeRecording() {
+        if (!isRecording || !isPaused) return;
+
+        isPaused = false;
+        console.log('Recording resumed');
+
+        // Send status to content script
+        sendToContentScript({
+            type: 'recordingStatus',
+            status: 'resumed',
+            recordingId: recordingId,
+            timestamp: Date.now(),
+            sequence: eventSequence++
+        });
+    }
+
     // Stop recording
     function stopRecording() {
         if (!isRecording) return;
@@ -109,15 +188,31 @@
         // Remove all event listeners
         removeEventListeners();
 
+        // Hide the recording toolbar
+        window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
+            detail: {
+                action: 'hideRecordingToolbar'
+            }
+        }));
+
         // Reset state
         isRecording = false;
+        isPaused = false;
         recordingId = null;
         lastEvent = null;
+
+        // Send status to content script
+        sendToContentScript({
+            type: 'recordingStatus',
+            status: 'stopped',
+            timestamp: Date.now(),
+            sequence: eventSequence++
+        });
     }
 
     // Record the initial state of the page
     function recordInitialState() {
-        const initialState = {
+        sendToContentScript({
             type: 'initialState',
             url: window.location.href,
             title: document.title,
@@ -126,10 +221,7 @@
             viewportHeight: window.innerHeight,
             sequence: eventSequence++,
             recordingId: recordingId,
-
-        };
-
-        sendToContentScript(initialState);
+        });
     }
 
     // Set up all event listeners
@@ -198,11 +290,14 @@
 
     // Handle mouse events
     function handleMouseEvent(event) {
-        if (!isRecording || !shouldRecordEvent()) return;
+        if (!isRecording || isPaused || !shouldRecordEvent()) return;
+
         // Find the target element's selector for replaying
         const selector = generateSelector(event.target);
-        console.log(selector, event.target)
         if (!selector) return;
+
+        // dont listen hazel toolbar events
+        if(selector?.includes('hazel_')) return;
 
         const eventData = {
             type: event.type,
@@ -218,6 +313,18 @@
 
         sendToContentScript(eventData);
         lastEvent = eventData;
+
+        // Update toolbar event count
+        incrementToolbarEventCount();
+    }
+
+    // Increment the event count in the toolbar
+    function incrementToolbarEventCount() {
+        window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
+            detail: {
+                action: 'incrementEventCount'
+            }
+        }));
     }
 
     // Intercept XHR to record AJAX requests
@@ -229,7 +336,7 @@
             const xhr = new originalXHR();
 
             // If we're not recording, don't modify XHR behavior
-            if (!isRecording) return xhr;
+            if (!isRecording || isPaused) return xhr;
 
             // Store original methods
             const originalOpen = xhr.open;
@@ -266,6 +373,7 @@
                 };
 
                 sendToContentScript(eventData);
+                incrementToolbarEventCount();
                 return originalSend.apply(this, arguments);
             };
 
@@ -287,7 +395,7 @@
 
         window.fetch = function(input, init) {
             // If we're not recording, don't modify fetch behavior
-            if (!isRecording) return originalFetch.apply(this, arguments);
+            if (!isRecording || isPaused) return originalFetch.apply(this, arguments);
 
             const url = typeof input === 'string' ? input : input.url;
             const method = init && init.method ? init.method : 'GET';
@@ -303,6 +411,7 @@
             };
 
             sendToContentScript(eventData);
+            incrementToolbarEventCount();
             return originalFetch.apply(this, arguments);
         };
     }
@@ -493,7 +602,7 @@
 
     // Handle keyboard events
     function handleKeyboardEvent(event) {
-        if (!isRecording || !shouldRecordEvent()) return;
+        if (!isRecording || isPaused || !shouldRecordEvent()) return;
 
         // Only record if it's a form element or the body
         if (!isInteractiveElement(event.target) && event.target !== document.body) return;
@@ -520,11 +629,12 @@
 
         sendToContentScript(eventData);
         lastEvent = eventData;
+        incrementToolbarEventCount();
     }
 
-// Handle input/change events
+    // Handle input/change events
     function handleInputEvent(event) {
-        if (!isRecording || !shouldRecordEvent()) return;
+        if (!isRecording || isPaused || !shouldRecordEvent()) return;
 
         // Skip if not an input-like element
         if (!isInteractiveElement(event.target)) return;
@@ -544,11 +654,12 @@
 
         sendToContentScript(eventData);
         lastEvent = eventData;
+        incrementToolbarEventCount();
     }
 
-// Handle navigation events
+    // Handle navigation events
     function handleNavigationEvent(event) {
-        if (!isRecording) return;
+        if (!isRecording || isPaused) return;
 
         const eventData = {
             type: event.type,
@@ -559,11 +670,12 @@
 
         sendToContentScript(eventData);
         lastEvent = eventData;
+        incrementToolbarEventCount();
     }
 
-// Handle form submit events
+    // Handle form submit events
     function handleFormSubmitEvent(event) {
-        if (!isRecording) return;
+        if (!isRecording || isPaused) return;
 
         const selector = getElementSelector(event.target);
         if (!selector) return;
@@ -580,11 +692,12 @@
 
         sendToContentScript(eventData);
         lastEvent = eventData;
+        incrementToolbarEventCount();
     }
 
-// Handle scroll events
+    // Handle scroll events
     function handleScrollEvent(event) {
-        if (!isRecording) return;
+        if (!isRecording || isPaused) return;
 
         const eventData = {
             type: RECORD_EVENTS.SCROLL,
@@ -596,11 +709,12 @@
 
         sendToContentScript(eventData);
         lastEvent = eventData;
+        incrementToolbarEventCount();
     }
 
-// Handle window resize events
+    // Handle window resize events
     function handleResizeEvent(event) {
-        if (!isRecording) return;
+        if (!isRecording || isPaused) return;
 
         const eventData = {
             type: RECORD_EVENTS.VIEWPORT,
@@ -612,6 +726,7 @@
 
         sendToContentScript(eventData);
         lastEvent = eventData;
+        incrementToolbarEventCount();
     }
 
     console.log('Browser Recorder: Recorder script initialized');
