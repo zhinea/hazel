@@ -9,6 +9,7 @@ const AUTH_COOKIE_NAME = 'oidc-auth';
 const AUTH_DOMAIN_URL = 'https://stag-hazel.flowless.my.id';
 const AUTH_ME_ENDPOINT = `${AUTH_DOMAIN_URL}/me`;
 const AUTH_STORAGE_KEY = 'hazelAuthToken';
+let user;
 
 const FRESH_PLAYER = {
     isPlaying: false,
@@ -486,6 +487,7 @@ async function checkAuthentication() {
             if (response.ok) {
                 console.log('/me endpoint check successful.');
                 // Optionally: const userData = await response.json(); console.log('User data:', userData);
+                user = await response.json();
                 return { authenticated: true };
             } else {
                 console.log('/me endpoint check failed:', response.status, response.statusText);
