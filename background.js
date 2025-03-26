@@ -5,6 +5,10 @@ let isRecording = false;
 let currentRecordingId = null;
 let currentTabId = null;
 let isPaused = false;
+const AUTH_COOKIE_NAME = 'oidc-auth';
+const AUTH_DOMAIN_URL = 'https://stag-hazel.flowless.my.id';
+const AUTH_ME_ENDPOINT = `${AUTH_DOMAIN_URL}/me`;
+const AUTH_STORAGE_KEY = 'hazelAuthToken';
 
 const FRESH_PLAYER = {
     isPlaying: false,
@@ -33,6 +37,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('Background received message:', message, 'from:', sender?.tab?.id || 'popup');
 
     try {
+        if (message.action === 'checkAuthStatus') {
+            (async() => {
+                const authStatus = await checkAuthentication();
+                sendResponse(authStatus);
+            })();
+        }else
         if (message.action === 'startRecording') {
             startRecording(message.tabId, message.recordingName);
             sendResponse({ success: true, recordingId: currentRecordingId });
@@ -447,5 +457,66 @@ function catchError(response){
 chrome.tabs.onRemoved.addListener((tabId) => {
     if (isRecording && tabId === currentTabId) {
         stopRecording();
+    }
+});
+
+// Function to check authentication status
+async function checkAuthentication() {
+    console.log('Checking authentication...');
+    try {
+        // 1. Try to get the cookie directly
+        const cookie = await chrome.cookies.get({ url: AUTH_DOMAIN_URL, name: AUTH_COOKIE_NAME });
+
+        if (cookie && cookie.value) {
+            console.log('Auth cookie found.');
+            // Store the latest cookie value in local storage just in case
+            await chrome.storage.local.set({ [AUTH_STORAGE_KEY]: cookie.value });
+
+            // 2. Verify cookie/session with the /me endpoint
+            // 'credentials: include' is crucial for sending cookies
+            const response = await fetch(AUTH_ME_ENDPOINT, {
+                method: 'GET',
+                credentials: 'include', // Sends cookies associated with AUTH_DOMAIN_URL
+                headers: {
+                    'Accept': 'application/json'
+                    // No need to set Authorization header if relying on cookie
+                }
+            });
+
+            if (response.ok) {
+                console.log('/me endpoint check successful.');
+                // Optionally: const userData = await response.json(); console.log('User data:', userData);
+                return { authenticated: true };
+            } else {
+                console.log('/me endpoint check failed:', response.status, response.statusText);
+                // If check fails, token might be invalid/expired, remove from storage
+                await chrome.storage.local.remove(AUTH_STORAGE_KEY);
+                return { authenticated: false, reason: `API check failed (${response.status})` };
+            }
+        } else {
+            console.log('Auth cookie not found.');
+            // Ensure storage is also clear if cookie is missing
+            await chrome.storage.local.remove(AUTH_STORAGE_KEY);
+            return { authenticated: false, reason: 'Cookie not found' };
+        }
+    } catch (error) {
+        console.error('Error during authentication check:', error);
+        // Also clear storage on network or other errors
+        await chrome.storage.local.remove(AUTH_STORAGE_KEY);
+        return { authenticated: false, reason: `Error: ${error.message}` };
+    }
+}
+
+// Listen for cookie changes to keep storage updated
+chrome.cookies.onChanged.addListener(async (changeInfo) => {
+    // Check if the changed cookie is our auth cookie for the correct domain
+    if (changeInfo.cookie.name === AUTH_COOKIE_NAME && changeInfo.cookie.domain && changeInfo.cookie.domain.includes('flowless.my.id')) {
+        if (changeInfo.removed) {
+            console.log('Auth cookie removed, clearing from storage.');
+            await chrome.storage.local.remove(AUTH_STORAGE_KEY);
+        } else {
+            console.log('Auth cookie added/updated, saving to storage.');
+            await chrome.storage.local.set({ [AUTH_STORAGE_KEY]: changeInfo.cookie.value });
+        }
     }
 });

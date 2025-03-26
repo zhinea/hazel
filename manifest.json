@@ -7,10 +7,12 @@
     "storage",
     "tabs",
     "activeTab",
-    "scripting"
+    "scripting",
+    "cookies"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://stag-hazel.flowless.my.id/"
   ],
   "background": {
     "service_worker": "background.js"
@@ -32,7 +34,8 @@
         "lib/event-types.js",
         "content/player-new.js",
         "content/recording-toolbar.js",
-        "content/recording-settings-modal.js"
+        "content/recording-settings-modal.js",
+        "content/api-service.js"
       ],
       "matches": ["<all_urls>"]
     }
