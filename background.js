@@ -65,6 +65,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             saveRecordedEvent(message.event);
             sendResponse({ success: true });
         }
+        else if (message.action === 'getCurrentTabId') {
+            // Get the active tab in the current window
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs && tabs.length > 0) {
+                    sendResponse({ tabId: tabs[0].id });
+                } else {
+                    sendResponse({ error: 'No active tab found' });
+                }
+            });
+            return true; // Indicate we'll respond asynchronously
+        }
         else if (message.action === 'clearAllRecordings') {
             // Handle clear all recordings request from settings
             chrome.storage.local.get(null, (data) => {
@@ -216,18 +227,21 @@ function playRecording(recordingId, tabId) {
                     return;
                 }
 
-                chrome.tabs.sendMessage(tabId, {
-                    action: 'hazel_player_initializePlayback',
-                    recordingId
-                },  (response) => {
-                    if (chrome.runtime.lastError) {
-                        console.error('Error sending message to tab:', chrome.runtime.lastError);
-                    } else {
-                        console.log('Playback message sent to tab, response:', response);
-                    }
+                const initializePlayback = (cb) => {
+                    chrome.tabs.sendMessage(tabId, {
+                        action: 'hazel_player_initializePlayback',
+                        recordingId
+                    },  (response) => {
+                        if (chrome.runtime.lastError) {
+                            console.error('Error sending message to tab:', chrome.runtime.lastError);
+                        } else {
+                            console.log('Playback message sent to tab, response:', response);
+                        }
+                        cb(response);
+                    });
+                }
 
-                    console.log(response)
-
+                initializePlayback((response) => {
                     if(!response.success){
                         console.log('Failed to initialize playback')
                         player = copyVar(FRESH_PLAYER)
@@ -241,7 +255,8 @@ function playRecording(recordingId, tabId) {
                         .sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
 
                     player.playbackStatus.totalEvents = recordingData.events.length;
-
+                    let errCount = {};
+                    let errRetryEvent = 0;
 
                     const sendPlayback = () => {
                         if(!player.isPlaying || player.currentEventIndex >= player.events.length){
@@ -267,6 +282,53 @@ function playRecording(recordingId, tabId) {
 
                             if(!response.success){
                                 console.log('Gagal play event')
+
+                                if(!errCount[player.currentEventIndex]){
+                                    errCount[player.currentEventIndex] = 0;
+                                }
+
+                                errCount[player.currentEventIndex]++;
+
+                                if(errRetryEvent > 3){
+                                    console.log('Gagal play event 3 kali. Stop recording. event failed:', errRetryEvent)
+                                    player.playbackStatus.isPlaying = false;
+                                    player.playbackStatus.isPaused = false;
+                                    player.playbackStatus.currentEventIndex = player.events.length;
+                                    return;
+                                }
+
+                                if(errCount[player.currentEventIndex] > 5){
+                                    console.log('Gagal play event 5 kali. Continue to next event. event failed:', errRetryEvent)
+
+                                    errRetryEvent++;
+                                    player.currentEventIndex++;
+                                    player.playbackStatus.currentEvent = player.currentEventIndex;
+                                    sendPlayback()
+
+                                    // player.playbackStatus.isPlaying = false;
+                                    // player.playbackStatus.isPaused = false;
+                                    // player.playbackStatus.currentEventIndex = player.events.length;
+                                    return;
+                                }
+
+
+                                const retryConnectionPlayback = (successCb) => {
+                                    initializePlayback(r2 => {
+                                        if(typeof r2?.success == "undefined" || !r2.success){
+                                            console.log('Gagal playback: retry connection playback')
+                                            setTimeout(() => {
+                                                retryConnectionPlayback()
+                                            }, 100)
+                                        }else{
+                                            successCb()
+                                        }
+                                    })
+                                }
+
+                                retryConnectionPlayback(() => {
+                                    sendPlayback()
+                                })
+
                                 return;
                             }
 
@@ -293,10 +355,7 @@ function playRecording(recordingId, tabId) {
                     }
 
                     sendPlayback()
-
-
-
-                });
+                })
 
             });
         });

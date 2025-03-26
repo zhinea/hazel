@@ -9,6 +9,8 @@ if (window.location.protocol === 'chrome:') {
     let recorder = null;
     let player = null;
     let recordedEvents = [];
+    let pendingRecordingName = null;
+    let recordingSettings = null;
 
     // Listen for messages from the player script (needs to be outside the other listener)
     window.addEventListener('BrowserRecorder_Player_FromPage', (event) => {
@@ -32,12 +34,45 @@ if (window.location.protocol === 'chrome:') {
         // Handle other message types from player as needed
     });
 
-    // Listen for messages from the recorder or toolbar
+    // Listen for messages from the recorder or modal
     window.addEventListener('BrowserRecorder_FromPage', (event) => {
         const message = event.detail;
 
+        // Handle settings modal responses
+        if (message.action === 'recordingSettingsConfirmed') {
+            console.log('Recording settings confirmed:', message.settings);
+            recordingSettings = message.settings;
+
+            // Start the actual recording with the confirmed settings
+            // Use the background script to get the current tab ID
+            chrome.runtime.sendMessage({
+                action: 'getCurrentTabId'
+            }, (response) => {
+                if (response && response.tabId) {
+                    // Now start the recording with the tab ID from the background
+                    chrome.runtime.sendMessage({
+                        action: 'startRecording',
+                        tabId: response.tabId,
+                        recordingName: pendingRecordingName || `Recording ${new Date().toLocaleTimeString()}`
+                    }, (startResponse) => {
+                        if (startResponse && startResponse.success) {
+                            console.log('Recording started with ID:', startResponse.recordingId);
+                        } else {
+                            console.error('Failed to start recording');
+                        }
+                    });
+                } else {
+                    console.error('Failed to get current tab ID');
+                }
+            });
+        }
+        else if (message.action === 'recordingSettingsCancelled') {
+            console.log('Recording settings cancelled');
+            pendingRecordingName = null;
+            recordingSettings = null;
+        }
         // Handle toolbar actions
-        if (message.action === 'pauseRecording') {
+        else if (message.action === 'pauseRecording') {
             // Forward to background script
             chrome.runtime.sendMessage({
                 action: 'pauseRecording'
@@ -77,6 +112,23 @@ if (window.location.protocol === 'chrome:') {
             }
         }
         // The event handling is kept in the recorder.onMessage callback
+        else if (message.type) {
+            // Save to local array
+            recordedEvents.push(message);
+
+            // Forward recorded events to the background script
+            console.log('Forwarding recorded event to background:', message);
+            chrome.runtime.sendMessage({
+                action: 'saveEvent',
+                event: message
+            }, response => {
+                if (chrome.runtime.lastError) {
+                    console.error('Error sending event to background:', chrome.runtime.lastError);
+                } else {
+                    console.log('Event sent to background, response:', response);
+                }
+            });
+        }
     });
 
     // Listen for messages from the background script
@@ -86,6 +138,11 @@ if (window.location.protocol === 'chrome:') {
 
         try {
             switch (message.action) {
+                case 'showRecordingSettingsModal':
+                    showSettingsModal(message.recordingName);
+                    sendResponse({ success: true });
+                    break;
+
                 case 'startRecordingInContent':
                     startRecording(message.recordingId).then(r => {});
                     sendResponse({ success: true });
@@ -135,6 +192,27 @@ if (window.location.protocol === 'chrome:') {
         return true; // Keep message channel open for async response
     });
 
+    // Show the recording settings modal
+    async function showSettingsModal(recordingName) {
+        console.log('Showing recording settings modal for', recordingName);
+        pendingRecordingName = recordingName;
+
+        try {
+            // First inject the modal script if it's not already injected
+            await injectScript('recording-settings-modal.js');
+
+            // Show the modal
+            window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
+                detail: {
+                    action: 'showRecordingSettingsModal',
+                    recordingName: recordingName
+                }
+            }));
+        } catch (error) {
+            console.error('Error showing settings modal:', error);
+        }
+    }
+
     // Utility function to inject a script
     async function injectScript(scriptName) {
         if (document.getElementById(`browser-recorder-${scriptName}`)) {
@@ -152,7 +230,7 @@ if (window.location.protocol === 'chrome:') {
     }
 
     // Start recording user actions
-    async function startRecording(recordingId) {
+    async function startRecording(recordingId, isNewRecord = true) {
         console.log('Starting recording in content script:', recordingId);
 
         // Reset recorded events
@@ -236,17 +314,26 @@ if (window.location.protocol === 'chrome:') {
             // Show the toolbar
             window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
                 detail: {
-                    action: 'showRecordingToolbar'
+                    action: 'showRecordingToolbar',
+                    recordingId: recordingId
                 }
             }));
 
-            // Tell the recorder to start recording
-            console.log('Sending start recording command to page');
-            recorder.postMessage({
+            // Apply settings to recorder if available
+            const recordingMessage = {
                 action: 'startRecording',
                 recordingId: recordingId,
-                timestamp: Date.now()
-            });
+                timestamp: Date.now(),
+                isNewRecord
+            };
+
+            if (recordingSettings) {
+                recordingMessage.settings = recordingSettings;
+            }
+
+            // Tell the recorder to start recording
+            console.log('Sending start recording command to page');
+            recorder.postMessage(recordingMessage);
         }, 300);
     }
 
@@ -308,6 +395,75 @@ if (window.location.protocol === 'chrome:') {
         // This is just a stub since you're using player-new.js instead
     }
 
+
+    const getRecorderStorage = () => {
+        let result = localStorage.getItem("hazel_recorder_status");
+        if(result){
+            result = JSON.parse(result);
+            return result;
+        }
+        return null;
+    }
+
+    const getCurrentStatus = () => {
+        let result = getRecorderStorage()
+        if(result){
+            return result?.status;
+        }
+        return null;
+    };
+    const setCurrentStatus = (status, recordingId = null) => localStorage.setItem("hazel_recorder_status", JSON.stringify({
+        status,
+        recordingId
+    }));
+    const getCurrentRecordingId = () => {
+        let result = getRecorderStorage()
+        if(result){
+            return result?.recordingId;
+        }
+        return null;
+    };
+
+    const runAll = (fns, timeout = 100) => {
+        if (fns.length === 0) return;
+        console.log(fns, fns.length)
+        setTimeout(() => {
+            let shifted = fns.shift();
+            if(Array.isArray(shifted)){
+                shifted[0](shifted[1])
+            }else{
+                shifted();
+            }
+            runAll(fns, timeout);
+        }, timeout);
+    };
+
+    if(getCurrentStatus() === 'recording'){
+        console.log('Verify is has recording state');
+
+        chrome.runtime.sendMessage({
+            action: "getRecordingStatus"
+        }, response => {
+            console.log('Navigation request sent to background script, response:', response);
+
+            if(!response.isRecording){
+                setCurrentStatus('stopped');
+                return;
+            }
+
+            if(response.isPaused){
+                runAll([
+                    [startRecording, response.currentRecordingId, false],
+                    pauseRecording
+                ], 50)
+                return;
+            }
+
+            startRecording(response.currentRecordingId, false).then(r => {})
+
+        });
+
+    }
     // Notify that the content script is ready
     console.log('Browser Recorder: Content script initialized on', window.location.href);
 }

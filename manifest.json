@@ -31,7 +31,8 @@
         "content/recorder.js",
         "lib/event-types.js",
         "content/player-new.js",
-        "content/recording-toolbar.js"
+        "content/recording-toolbar.js",
+        "content/recording-settings-modal.js"
       ],
       "matches": ["<all_urls>"]
     }

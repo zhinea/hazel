@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/browser-recorder.iml" filepath="$PROJECT_DIR$/.idea/browser-recorder.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../browser-recorder-api/.idea/browser-recorder-api.iml" filepath="$PROJECT_DIR$/../browser-recorder-api/.idea/browser-recorder-api.iml" />
     </modules>
   </component>
 </project>

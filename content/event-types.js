@@ -4,6 +4,8 @@ const EVENT_TYPES = {
     // Initial page state
     INITIAL_STATE: 'initialState',
 
+    FORM_NAVIGATION: 'formNavigation',
+
     // Mouse events
     MOUSE: {
         CLICK: 'click',
@@ -58,6 +60,14 @@ const EVENT_STRUCTURE = {
         viewportHeight: 0, // Window height
         timestamp: 0, // When recording started
         sequence: 0 // Event sequence number
+    },
+
+    // Form navigation
+    [EVENT_TYPES.FORM_NAVIGATION]: {
+        type: EVENT_TYPES.FORM_NAVIGATION,
+        url: '',
+        timestamp: 0,
+        sequence: 0
     },
 
     // Mouse click

@@ -6,6 +6,7 @@
     let eventCount = 0;
     let recordingState = 'recording'; // 'recording', 'paused'
     let durationInterval = null;
+    let currentRecordingId = null;
 
     // Create and inject the toolbar
     function createToolbar() {
@@ -34,48 +35,48 @@
                 user-select: none;
             }
             
-            #hazel_browser-recorder-toolbar.minimized {
+            #hazel_browser-recorder-toolbar.hazel_minimized {
                 width: auto;
                 height: auto;
             }
             
-            #hazel_browser-recorder-toolbar .recording-indicator {
+            #hazel_browser-recorder-toolbar .hazel_recording-indicator {
                 display: flex;
                 align-items: center;
                 margin-right: 12px;
             }
             
-            #hazel_browser-recorder-toolbar .recording-dot {
+            #hazel_browser-recorder-toolbar .hazel_recording-dot {
                 width: 12px;
                 height: 12px;
                 background-color: #ff4a4a;
                 border-radius: 50%;
                 margin-right: 8px;
-                animation: pulse 1.5s infinite;
+                animation: hazel_pulse 1.5s infinite;
             }
             
-            #hazel_browser-recorder-toolbar.paused .recording-dot {
+            #hazel_browser-recorder-toolbar.hazel_paused .hazel_recording-dot {
                 animation: none;
                 background-color: #ffaa00;
             }
             
-            #hazel_browser-recorder-toolbar .stats {
+            #hazel_browser-recorder-toolbar .hazel_stats {
                 display: flex;
                 align-items: center;
                 font-size: 14px;
                 margin-right: 15px;
             }
             
-            #hazel_browser-recorder-toolbar .stat {
+            #hazel_browser-recorder-toolbar .hazel_stat {
                 margin-right: 15px;
             }
             
-            #hazel_browser-recorder-toolbar .stat-label {
+            #hazel_browser-recorder-toolbar .hazel_stat-label {
                 opacity: 0.7;
                 margin-right: 5px;
             }
             
-            #hazel_browser-recorder-toolbar .controls {
+            #hazel_browser-recorder-toolbar .hazel_controls {
                 display: flex;
                 align-items: center;
             }
@@ -121,7 +122,7 @@
                 margin-right: 5px;
             }
             
-            @keyframes pulse {
+            @keyframes hazel_pulse {
                 0% { opacity: 1; }
                 50% { opacity: 0.5; }
                 100% { opacity: 1; }
@@ -135,21 +136,21 @@
 
         // Toolbar content
         toolbar.innerHTML = `
-            <div class="recording-indicator">
-                <div class="recording-dot"></div>
-                <span class="recording-status">Recording</span>
+            <div class="hazel_recording-indicator">
+                <div class="hazel_recording-dot"></div>
+                <span class="hazel_recording-status">Recording</span>
             </div>
-            <div class="stats">
-                <div class="stat duration">
-                    <span class="stat-label">Duration:</span>
-                    <span class="stat-value" id="hazel_recording-duration">00:00</span>
+            <div class="hazel_stats">
+                <div class="hazel_stat hazel_duration">
+                    <span class="hazel_stat-label">Duration:</span>
+                    <span class="hazel_stat-value" id="hazel_recording-duration">00:00</span>
                 </div>
-                <div class="stat events">
-                    <span class="stat-label">Events:</span>
-                    <span class="stat-value" id="hazel_event-count">0</span>
+                <div class="hazel_stat hazel_events">
+                    <span class="hazel_stat-label">Events:</span>
+                    <span class="hazel_stat-value" id="hazel_event-count">0</span>
                 </div>
             </div>
-            <div class="controls">
+            <div class="hazel_controls">
                 <button class="hazel_btn-pause" id="hazel_btn-pause">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="6" y="4" width="4" height="16"></rect>
@@ -185,9 +186,6 @@
         // Initialize event handlers
         initEventHandlers();
 
-        // Start the timer
-        startTimer();
-
         return toolbar;
     }
 
@@ -216,13 +214,13 @@
         // Minimize button
         minimizeBtn.addEventListener('click', function() {
             // Toggle minimize/maximize
-            toolbar.classList.toggle('minimized');
-            if (toolbar.classList.contains('minimized')) {
+            toolbar.classList.toggle('hazel_minimized');
+            if (toolbar.classList.contains('hazel_minimized')) {
                 // Save elements state before minimizing
                 toolbar.dataset.previousHtml = toolbar.innerHTML;
                 toolbar.innerHTML = `
-                    <div class="recording-indicator">
-                        <div class="recording-dot"></div>
+                    <div class="hazel_recording-indicator">
+                        <div class="hazel_recording-dot"></div>
                     </div>
                     <button class="hazel_btn-minimize" id="hazel_btn-minimize">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -234,7 +232,7 @@
                     </button>
                 `;
                 document.getElementById('hazel_btn-minimize').addEventListener('click', function() {
-                    toolbar.classList.remove('minimized');
+                    toolbar.classList.remove('hazel_minimized');
                     toolbar.innerHTML = toolbar.dataset.previousHtml;
                     initEventHandlers(); // Reinitialize event handlers
                 });
@@ -280,18 +278,69 @@
         }
     }
 
+    // Load recording status from localStorage
+    function loadRecordingStatus(recordingId) {
+        if (!recordingId) return false;
+
+        const statusKey = `hazel_toolbar-status_${recordingId}`;
+        const storedStatus = localStorage.getItem(statusKey);
+
+        if (storedStatus) {
+            try {
+                const status = JSON.parse(storedStatus);
+                recordingStartTime = status.startTime || Date.now();
+                eventCount = status.eventCount || 0;
+                recordingState = status.state || 'recording';
+
+                console.log(`Loaded recording status for ${recordingId}:`, status);
+                return true;
+            } catch (e) {
+                console.error('Error parsing stored recording status:', e);
+            }
+        }
+
+        return false;
+    }
+
+    // Save recording status to localStorage
+    function saveRecordingStatus() {
+        if (!currentRecordingId) return;
+
+        const statusKey = `hazel_toolbar-status_${currentRecordingId}`;
+        const status = {
+            startTime: recordingStartTime,
+            eventCount: eventCount,
+            state: recordingState,
+            lastUpdated: Date.now()
+        };
+
+        localStorage.setItem(statusKey, JSON.stringify(status));
+        console.log(`Saved recording status for ${currentRecordingId}:`, status);
+    }
+
     // Start the timer for recording duration
     function startTimer() {
-        recordingStartTime = Date.now();
+        // Clear any existing interval
+        if (durationInterval) {
+            clearInterval(durationInterval);
+        }
+
+        // If we don't have a start time yet, initialize it
+        if (!recordingStartTime) {
+            recordingStartTime = Date.now();
+        }
 
         // Update duration every second
         durationInterval = setInterval(function() {
             if (recordingState === 'recording') {
                 updateDuration();
+                // Save status to localStorage on each update
+                saveRecordingStatus();
             }
         }, 1000);
 
         updateDuration(); // Initial update
+        saveRecordingStatus(); // Initial save
     }
 
     // Update the duration display
@@ -316,6 +365,27 @@
         if (!eventCountElement) return;
 
         eventCountElement.textContent = eventCount;
+        saveRecordingStatus(); // Save when event count changes
+    }
+
+    // Initialize the toolbar UI based on current state
+    function initializeToolbarState() {
+        if (recordingState === 'paused') {
+            // Update UI for paused state
+            toolbar.classList.add('hazel_paused');
+            const statusElement = toolbar.querySelector('.hazel_recording-status');
+            if (statusElement) statusElement.textContent = 'Paused';
+
+            // Toggle buttons
+            const pauseBtn = document.getElementById('hazel_btn-pause');
+            const resumeBtn = document.getElementById('hazel_btn-resume');
+            if (pauseBtn) pauseBtn.style.display = 'none';
+            if (resumeBtn) resumeBtn.style.display = 'flex';
+        }
+
+        // Update initial counts
+        updateEventCount();
+        updateDuration();
     }
 
     // Pause the recording
@@ -325,13 +395,16 @@
         recordingState = 'paused';
 
         // Update UI
-        toolbar.classList.add('paused');
-        const statusElement = toolbar.querySelector('.recording-status');
+        toolbar.classList.add('hazel_paused');
+        const statusElement = toolbar.querySelector('.hazel_recording-status');
         if (statusElement) statusElement.textContent = 'Paused';
 
         // Toggle buttons
         document.getElementById('hazel_btn-pause').style.display = 'none';
         document.getElementById('hazel_btn-resume').style.display = 'flex';
+
+        // Save status to localStorage
+        saveRecordingStatus();
 
         // Notify the extension
         window.dispatchEvent(new CustomEvent('BrowserRecorder_FromPage', {
@@ -349,13 +422,16 @@
         recordingState = 'recording';
 
         // Update UI
-        toolbar.classList.remove('paused');
-        const statusElement = toolbar.querySelector('.recording-status');
+        toolbar.classList.remove('hazel_paused');
+        const statusElement = toolbar.querySelector('.hazel_recording-status');
         if (statusElement) statusElement.textContent = 'Recording';
 
         // Toggle buttons
         document.getElementById('hazel_btn-pause').style.display = 'flex';
         document.getElementById('hazel_btn-resume').style.display = 'none';
+
+        // Save status to localStorage
+        saveRecordingStatus();
 
         // Notify the extension
         window.dispatchEvent(new CustomEvent('BrowserRecorder_FromPage', {
@@ -381,6 +457,13 @@
             clearInterval(durationInterval);
         }
 
+        // Remove the localStorage entry for this recording
+        if (currentRecordingId) {
+            const statusKey = `hazel_toolbar-status_${currentRecordingId}`;
+            localStorage.removeItem(statusKey);
+            console.log(`Removed recording status for ${currentRecordingId}`);
+        }
+
         // Remove toolbar
         if (toolbar && toolbar.parentNode) {
             toolbar.parentNode.removeChild(toolbar);
@@ -392,6 +475,7 @@
     function incrementEventCount() {
         eventCount++;
         updateEventCount();
+        saveRecordingStatus(); // Save when event count changes
     }
 
     // Listen for messages from the content script
@@ -400,7 +484,30 @@
 
         switch (message.action) {
             case 'showRecordingToolbar':
-                createToolbar();
+                // Get the recording ID if provided
+                if (message.recordingId) {
+                    currentRecordingId = message.recordingId;
+
+                    // Try to load existing status
+                    const loaded = loadRecordingStatus(currentRecordingId);
+
+                    // Create the toolbar
+                    createToolbar();
+
+                    // Initialize UI based on loaded status
+                    initializeToolbarState();
+
+                    // Start the timer (will use loaded start time if available)
+                    startTimer();
+
+                    console.log(`Recording toolbar initialized for recording ${currentRecordingId}`,
+                        loaded ? '(loaded from storage)' : '(new recording)');
+                } else {
+                    console.error('No recording ID provided when showing toolbar');
+                    // Fall back to default behavior
+                    createToolbar();
+                    startTimer();
+                }
                 break;
 
             case 'hideRecordingToolbar':

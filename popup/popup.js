@@ -31,21 +31,37 @@ document.addEventListener('DOMContentLoaded', function() {
         const recordingName = recordingNameInput.value.trim() ||
             `Recording ${new Date().toLocaleTimeString()}`;
 
-        // Send message to background script to start recording
-        chrome.runtime.sendMessage({
-            action: 'startRecording',
-            tabId: currentTab.id,
+        // Show settings modal on the page first
+        chrome.tabs.sendMessage(currentTab.id, {
+            action: 'showRecordingSettingsModal',
             recordingName: recordingName
         }, (response) => {
-            if (response && response.success) {
-                // Update UI
-                updateRecordingUI(true);
-                // Store recording ID for when we stop
-                startRecordingBtn.dataset.recordingId = response.recordingId;
-            } else {
-                showError('Failed to start recording');
+            // If there was an error, it might be because the content script isn't ready
+            if (chrome.runtime.lastError) {
+                console.error('Error showing settings modal:', chrome.runtime.lastError);
+
+                // Inject the modal script and try again
+                chrome.scripting.executeScript({
+                    target: { tabId: currentTab.id },
+                    files: ['content/recording-settings-modal.js']
+                }, () => {
+                    setTimeout(() => {
+                        chrome.tabs.sendMessage(currentTab.id, {
+                            action: 'showRecordingSettingsModal',
+                            recordingName: recordingName
+                        });
+                    }, 100);
+                });
             }
         });
+
+        // The actual recording will be started by the content script
+        // when the user confirms the settings modal
+
+        // Close the popup to avoid interference
+        setTimeout(() => {
+            window.close();
+        }, 200);
     });
 
     // Stop recording button

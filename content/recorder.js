@@ -2,6 +2,21 @@
 (function() {
     console.log('Recorder script loaded and initializing');
 
+    // window.addEventListener('DOMContentLoaded', () => {
+    //     console.log('hehehe')
+    //     if(getCurrentStatus() === 'recording' && getCurrentRecordingId() != null){
+    //         console.log('disni')
+    //         sendToContentScript({
+    //             type: 'formNavigation',
+    //             url: window.location.href,
+    //             timestamp: Date.now(),
+    //             sequence: eventSequence++
+    //         })
+    //         startRecording(getCurrentRecordingId())
+    //     }
+    // })
+
+
     // State
     let isRecording = false;
     let isPaused = false;
@@ -17,7 +32,9 @@
             DBLCLICK: 'dblclick'
         },
         KEYBOARD: {
-            INPUT: 'input'
+            INPUT: 'input',
+            // KEYDOWN: 'keydown',
+            // KEYUP: 'keyup'
         },
         NAVIGATION: {
             HASHCHANGE: 'hashchange',
@@ -39,7 +56,7 @@
 
         switch (message.action) {
             case 'startRecording':
-                startRecording(message.recordingId);
+                startRecording(message.recordingId, message?.isNewRecord || true);
                 break;
 
             case 'stopRecording':
@@ -54,6 +71,9 @@
                 resumeRecording();
                 break;
 
+            case 'incrementEventCount':
+                break;
+
             default:
                 console.warn('Unknown action received by recorder:', message.action);
         }
@@ -61,27 +81,58 @@
 
     // Send message to content script
     function sendToContentScript(data) {
-        console.log('Recorder sending event to content script:', data);
         window.dispatchEvent(new CustomEvent('BrowserRecorder_FromPage', {
             detail: data
         }));
     }
 
-    const runAll = (fns) => {
+    const runAll = (fns, timeout = 100) => {
         if (fns.length === 0) return;
         console.log(fns, fns.length)
         setTimeout(() => {
             fns.shift()();
-            runAll(fns);
-        }, 100);
+            runAll(fns, timeout);
+        }, timeout);
     };
 
+    const getRecorderStorage = () => {
+        let result = localStorage.getItem("hazel_recorder_storage");
+        if(result){
+            result = JSON.parse(result);
+            return result;
+        }
+        return null;
+    }
+
+    const getCurrentStatus = () => {
+        let result = getRecorderStorage()
+        if(result){
+            return result?.status;
+        }
+        return null;
+    };
+    const setCurrentStatus = (status, recordingId = null) => localStorage.setItem("hazel_recorder_status", JSON.stringify({
+        status,
+        recordingId
+    }));
+    const getCurrentRecordingId = () => {
+        let result = getRecorderStorage()
+        if(result){
+            return result?.recordingId;
+        }
+        return null;
+    };
 
     // Start recording user interactions
-    function startRecording(id) {
+    function startRecording(id, isNewRecord = true) {
+        console.log('started with id', id,'is new record',  isNewRecord)
         if (isRecording) {
             stopRecording();
         }
+
+        // if(getCurrentStatus() == null || getCurrentStatus() === 'stopped'){
+        // }
+        setCurrentStatus('recording', id);
 
         console.log('Recording started with ID:', id);
         recordingId = id;
@@ -90,14 +141,14 @@
         eventSequence = 0;
 
         runAll([
-            recordInitialState,
-            () => sendToContentScript({
+            () => isNewRecord ? recordInitialState() : '',
+            () => isNewRecord ? sendToContentScript({
                 type: 'recordingStatus',
                 status: 'started',
                 recordingId: recordingId,
                 timestamp: Date.now(),
                 sequence: eventSequence++
-            }),
+            }): '',
             injectToolbar,
             setupEventListeners
         ]);
@@ -107,7 +158,7 @@
             if (isRecording) {
                 sendToContentScript({
                     type: 'testEvent',
-                    message: 'This is a test event to verify recording is working',
+                    message: 'ping',
                     url: window.location.href,
                     timestamp: Date.now(),
                     sequence: eventSequence++
@@ -121,20 +172,20 @@
         // Check if toolbar script is already injected
         if (!document.getElementById('browser-recorder-toolbar-script')) {
             // Inject the toolbar script
-            // const script = document.createElement('script');
-            // script.id = 'browser-recorder-toolbar-script';
-            // script.src = chrome?.runtime?.getURL('content/recording-toolbar.js');
-            // (document.head || document.documentElement).appendChild(script);
-            //
-            // // Wait for script to load
-            // script.onload = function() {
-            //     // Show the toolbar
-            //     window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
-            //         detail: {
-            //             action: 'showRecordingToolbar'
-            //         }
-            //     }));
-            // };
+            const script = document.createElement('script');
+            script.id = 'browser-recorder-toolbar-script';
+            script.src = chrome?.runtime?.getURL('content/recording-toolbar.js');
+            (document.head || document.documentElement).appendChild(script);
+
+            // Wait for script to load
+            script.onload = function() {
+                // Show the toolbar
+                window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
+                    detail: {
+                        action: 'showRecordingToolbar'
+                    }
+                }));
+            };
         } else {
             // Script already injected, just show the toolbar
             window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
@@ -208,6 +259,8 @@
             timestamp: Date.now(),
             sequence: eventSequence++
         });
+
+        setCurrentStatus('stopped');
     }
 
     // Record the initial state of the page
@@ -234,7 +287,8 @@
 
         // Keyboard events
         addEventListeners(document, [
-            RECORD_EVENTS.KEYBOARD.KEYDOWN
+            RECORD_EVENTS.KEYBOARD.KEYDOWN,
+            // RECORD_EVENTS.KEYBOARD.KEYUP
         ], handleKeyboardEvent);
 
         // Form input events
@@ -249,9 +303,11 @@
             RECORD_EVENTS.NAVIGATION.POPSTATE
         ], handleNavigationEvent);
 
-        addEventListeners(document, [
-            RECORD_EVENTS.NAVIGATION.SUBMIT
-        ], handleFormSubmitEvent);
+        document.addEventListener('submit', handleFormSubmitEvent, { passive: true });
+
+        // addEventListeners(document, [
+        //     RECORD_EVENTS.NAVIGATION.SUBMIT
+        // ], handleFormSubmitEvent, { passive: true});
 
         // Scroll events (throttled)
         addEventListeners(window, [
@@ -262,6 +318,8 @@
         addEventListeners(window, [
             'resize'
         ], throttle(handleResizeEvent, 250));
+
+        // window.addEventListener('beforeunload', beforeUnloadHandler, {once: true});
 
         // Record AJAX request (XHR & fetch)
         // interceptXHR();
@@ -275,6 +333,18 @@
             listeners.push({ target, type, handler, options });
         });
     }
+
+    // Add a listener for beforeunload to detect if this form submission will cause navigation
+    const beforeUnloadHandler = () => {
+        // sendToContentScript({
+        //     type: 'formNavigation',
+        //     url: window.location.href,
+        //     timestamp: Date.now(),
+        //     sequence: eventSequence++
+        // })
+        console.log('unload')
+        window.removeEventListener('beforeunload', beforeUnloadHandler);
+    };
 
     // Remove all registered event listeners
     function removeEventListeners() {
@@ -295,6 +365,11 @@
         // Find the target element's selector for replaying
         const selector = generateSelector(event.target);
         if (!selector) return;
+        const targetClass = event?.target?.className;
+        const classStr = typeof targetClass === 'string' ? targetClass : targetClass?.baseVal || '';
+
+        if (classStr.startsWith('hazel_') || selector?.includes('hazel_')) return;
+
 
         // dont listen hazel toolbar events
         if(selector?.includes('hazel_')) return;
@@ -425,44 +500,103 @@
 
     // Utility functions
     function generateSelector(context) {
-        let index, pathSelector;
+        let pathParts = [];
+        let currentElement = context;
 
-        if (!context) throw "not a dom reference";
+        if (!currentElement) throw "Invalid DOM reference";
 
-        // if the node is an SVG element, use its parent instead
-        if (context.tagName && context.tagName.toLowerCase() === 'svg') {
-            context = context.parentNode;
+        // Handle SVG elements by moving to parent
+        if (currentElement.tagName?.toLowerCase() === 'svg') {
+            currentElement = currentElement.parentNode;
         }
 
-        // call getIndex function
-        index = getIndex(context);
+        while (currentElement && currentElement.tagName) {
+            let selectorPart = '';
+            const tagName = currentElement.tagName.toLowerCase();
 
-        while (context.tagName) {
-            // build the selector path
-            pathSelector = context.localName + (pathSelector ? ">" + pathSelector : "");
-            context = context.parentNode;
+            // 1. Prefer ID selector
+            if (currentElement.id) {
+                selectorPart = `#${currentElement.id}`;
+                pathParts.push(selectorPart);
+                break; // IDs should be unique
+            }
+
+            // 2. Use class-based selector with index when needed
+            const classes = getValidClasses(currentElement);
+            if (classes.length > 0) {
+                const classIndex = getClassIndex(currentElement, classes);
+                selectorPart = `${tagName}.${classes.join('.')}`;
+
+                // Add index only when duplicate siblings exist
+                if (classIndex > 1) {
+                    selectorPart += `:nth-of-type(${classIndex})`;
+                }
+            }
+            // 3. Fallback to tag + structural index
+            else {
+                const tagIndex = getTagIndex(currentElement);
+                selectorPart = `${tagName}:nth-of-type(${tagIndex})`;
+            }
+
+            pathParts.push(selectorPart);
+            currentElement = currentElement.parentNode;
         }
-        // append nth-of-type to the last element
-        pathSelector = pathSelector + `:nth-of-type(${index})`;
-        return pathSelector;
+
+        return pathParts.reverse().join(' ');
     }
 
-    function getIndex(node) {
-        let i = 1;
-        let tagName = node.tagName;
+    // Helper function to get valid class list
+    function getValidClasses(element) {
+        return (element?.className || '')
+            .split(/\s+/)
+            .filter(c => c.length > 0 && !c.startsWith('_'));
+    }
 
-        while (node.previousSibling) {
-            node = node.previousSibling;
-            if (
-                node.nodeType === 1 &&
-                tagName.toLowerCase() === node.tagName.toLowerCase()
-            ) {
-                i++;
+    // Get index among siblings with same tag and classes
+    function getClassIndex(node, targetClasses) {
+        const siblings = Array.from(node.parentNode?.children || []);
+        const tag = node.tagName.toLowerCase();
+        let index = 1;
+
+        for (const sibling of siblings) {
+            if (sibling === node) break;
+            if (sibling.tagName.toLowerCase() !== tag) continue;
+
+            const siblingClasses = getValidClasses(sibling);
+            if (arraysEqual(targetClasses, siblingClasses)) {
+                index++;
             }
         }
-        return i;
+
+        return index;
     }
 
+// Original tag-based index
+    function getTagIndex(node) {
+        let index = 1;
+        const tag = node.tagName.toLowerCase();
+        let sibling = node.previousSibling;
+
+        while (sibling) {
+            if (sibling.nodeType === 1 && sibling.tagName.toLowerCase() === tag) {
+                index++;
+            }
+            sibling = sibling.previousSibling;
+        }
+
+        return index;
+    }
+
+// Array comparison helper
+    function arraysEqual(a, b) {
+        if (a === b) return true;
+        if (a.length !== b.length) return false;
+
+        const sortedA = [...a].sort();
+        const sortedB = [...b].sort();
+
+        return sortedA.every((val, i) => val === sortedB[i]);
+    }
 
     // Create a unique selector for an element
     function getElementSelector(element) {
@@ -675,24 +809,50 @@
 
     // Handle form submit events
     function handleFormSubmitEvent(event) {
-        if (!isRecording || isPaused) return;
+        // Remove this line that was preventing submission
+        // event.preventDefault();
 
-        const selector = getElementSelector(event.target);
+        if (!isRecording || isPaused) return;
+        console.log('Form submit detected');
+
+        const selector = generateSelector(event.target);
         if (!selector) return;
 
-        const formData = getFormData(event.target);
+        const formData = {};
+
+        // Collect form data properly
+        if (event.target && event.target.tagName === 'FORM') {
+            const formElements = event.target.elements;
+            for (let i = 0; i < formElements.length; i++) {
+                const element = formElements[i];
+                if (element.name) {
+                    if (element.type === 'checkbox' || element.type === 'radio') {
+                        if (element.checked) {
+                            formData[element.name] = element.value;
+                        }
+                    } else if (element.type !== 'submit' && element.type !== 'button') {
+                        formData[element.name] = element.value;
+                    }
+                }
+            }
+        }
 
         const eventData = {
-            type: event.type,
+            type: 'submit',
             selector: selector,
             formData: formData,
+            url: window.location.href,
             timestamp: Date.now(),
             sequence: eventSequence++
         };
 
+        // Send the event data to content script
         sendToContentScript(eventData);
         lastEvent = eventData;
         incrementToolbarEventCount();
+
+        // Add a listener for navigation that may happen after form submission
+        window.addEventListener('beforeunload', beforeUnloadHandler, {once: true});
     }
 
     // Handle scroll events
@@ -728,6 +888,7 @@
         lastEvent = eventData;
         incrementToolbarEventCount();
     }
+
 
     console.log('Browser Recorder: Recorder script initialized');
 })();

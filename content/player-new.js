@@ -54,6 +54,9 @@ if(window.location.protocol === 'chrome:'){
                     console.log('Initial state event:', event);
                     window.location.href = event.url
                     break;
+                case 'formNavigation':
+                    window.location.href = event.url
+                    break;
 
                 case 'click':
                     simulateClick(event);
@@ -297,18 +300,6 @@ if(window.location.protocol === 'chrome:'){
                 }
             }
 
-            // 2. For ID-based selectors, try just the ID part
-            if (selector.includes('#')) {
-                const idMatch = selector.match(/#([a-zA-Z0-9_-]+)/);
-                if (idMatch && idMatch[1]) {
-                    element = document.getElementById(idMatch[1]);
-                    if (element) {
-                        console.log('Found element with ID:', idMatch[1]);
-                        return element;
-                    }
-                }
-            }
-
             // 3. Try using just the tag and attribute parts
             if (selector.includes('[')) {
                 const parts = selector.split(' ');
@@ -332,6 +323,18 @@ if(window.location.protocol === 'chrome:'){
                     element = document.querySelector(`[name="${nameMatch[1]}"]`);
                     if (element) {
                         console.log('Found element by name:', nameMatch[1]);
+                        return element;
+                    }
+                }
+            }
+
+            // 2. For ID-based selectors, try just the ID part
+            if (selector.includes('#')) {
+                const idMatch = selector.match(/#([a-zA-Z0-9_-]+)/);
+                if (idMatch && idMatch[1]) {
+                    element = document.getElementById(idMatch[1]);
+                    if (element) {
+                        console.log('Found element with ID:', idMatch[1]);
                         return element;
                     }
                 }
