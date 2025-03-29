@@ -127,9 +127,21 @@ Hazel talks smoothly with its cloud API to:
 - ❌ Playback misbehaving? Try recording again with the latest version
 - 🔑 Authentication issues? Log in again through the cloud platform
 
-## 📜 License
+## License
 
-[MIT License](https://choosealicense.com/licenses/mit/)
+Copyright (c) 2025 Hazel Browser Recorder Team
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software to use, modify, and contribute to the software, subject to the following conditions:
+
+No Repository Cloning: The creation of public repositories containing substantially similar code to this project is prohibited. This includes direct copies, forks that are made public, or derivative works that maintain the core functionality of this software.
+Contributions Welcome: Contributions to the original repository through pull requests are encouraged and welcome.
+Personal Use: Users may modify and use the software for personal or internal organizational use.
+No Commercial Distribution: The software may not be commercially distributed as-is or in modified form without explicit permission from the copyright holders.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Contact
+
+For any questions or feedback, please reach out to [zidna.dev@gmail.com](mailto:zidna.dev@gmail.com).
 
 ---
 
