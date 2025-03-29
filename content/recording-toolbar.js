@@ -315,7 +315,7 @@
         };
 
         localStorage.setItem(statusKey, JSON.stringify(status));
-        console.log(`Saved recording status for ${currentRecordingId}:`, status);
+        // console.log(`Saved recording status for ${currentRecordingId}:`, status);
     }
 
     // Start the timer for recording duration

@@ -8,7 +8,8 @@
     "tabs",
     "activeTab",
     "scripting",
-    "cookies"
+    "cookies",
+    "alarms"
   ],
   "host_permissions": [
     "<all_urls>",

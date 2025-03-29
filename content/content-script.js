@@ -53,7 +53,8 @@ if (window.location.protocol === 'chrome:') {
                     chrome.runtime.sendMessage({
                         action: 'startRecording',
                         tabId: response.tabId,
-                        recordingName: pendingRecordingName || `Recording ${new Date().toLocaleTimeString()}`
+                        recordingName: pendingRecordingName || `Recording ${new Date().toLocaleTimeString()}`,
+                        settings: message.settings
                     }, (startResponse) => {
                         if (startResponse && startResponse.success) {
                             console.log('Recording started with ID:', startResponse.recordingId);
@@ -117,7 +118,6 @@ if (window.location.protocol === 'chrome:') {
             recordedEvents.push(message);
 
             // Forward recorded events to the background script
-            console.log('Forwarding recorded event to background:', message);
             chrome.runtime.sendMessage({
                 action: 'saveEvent',
                 event: message
@@ -134,7 +134,7 @@ if (window.location.protocol === 'chrome:') {
     // Listen for messages from the background script
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if(message.action.startsWith('hazel_player')) return;
-        console.log('Content script received message:', message);
+        // console.log('Content script received message:', message);
 
         try {
             switch (message.action) {
@@ -144,7 +144,7 @@ if (window.location.protocol === 'chrome:') {
                     break;
 
                 case 'startRecordingInContent':
-                    startRecording(message.recordingId).then(r => {});
+                    startRecording(message.recordingId, true, message.settings).then(r => {});
                     sendResponse({ success: true });
                     break;
 
@@ -230,7 +230,7 @@ if (window.location.protocol === 'chrome:') {
     }
 
     // Start recording user actions
-    async function startRecording(recordingId, isNewRecord = true) {
+    async function startRecording(recordingId, isNewRecord = true, settings = {}) {
         console.log('Starting recording in content script:', recordingId);
 
         // Reset recorded events
@@ -324,7 +324,8 @@ if (window.location.protocol === 'chrome:') {
                 action: 'startRecording',
                 recordingId: recordingId,
                 timestamp: Date.now(),
-                isNewRecord
+                isNewRecord,
+                settings
             };
 
             if (recordingSettings) {
@@ -334,7 +335,7 @@ if (window.location.protocol === 'chrome:') {
             // Tell the recorder to start recording
             console.log('Sending start recording command to page');
             recorder.postMessage(recordingMessage);
-        }, 300);
+        }, 100);
     }
 
     // Pause recording
@@ -384,6 +385,8 @@ if (window.location.protocol === 'chrome:') {
                 action: 'hideRecordingToolbar'
             }
         }));
+
+
     }
 
     // This is kept for compatibility with your existing code
@@ -423,6 +426,13 @@ if (window.location.protocol === 'chrome:') {
         }
         return null;
     };
+    const getCurrentSettings = () => {
+        let result = getRecorderStorage()
+        if(result){
+            return result?.settings || {};
+        }
+        return null;
+    };
 
     const runAll = (fns, timeout = 100) => {
         if (fns.length === 0) return;
@@ -453,13 +463,13 @@ if (window.location.protocol === 'chrome:') {
 
             if(response.isPaused){
                 runAll([
-                    [startRecording, response.currentRecordingId, false],
+                    [startRecording, response.currentRecordingId, false, getCurrentSettings()],
                     pauseRecording
                 ], 50)
                 return;
             }
 
-            startRecording(response.currentRecordingId, false).then(r => {})
+            startRecording(response.currentRecordingId, false, getCurrentSettings()).then(r => {})
 
         });
 

@@ -2,21 +2,6 @@
 (function() {
     console.log('Recorder script loaded and initializing');
 
-    // window.addEventListener('DOMContentLoaded', () => {
-    //     console.log('hehehe')
-    //     if(getCurrentStatus() === 'recording' && getCurrentRecordingId() != null){
-    //         console.log('disni')
-    //         sendToContentScript({
-    //             type: 'formNavigation',
-    //             url: window.location.href,
-    //             timestamp: Date.now(),
-    //             sequence: eventSequence++
-    //         })
-    //         startRecording(getCurrentRecordingId())
-    //     }
-    // })
-
-
     // State
     let isRecording = false;
     let isPaused = false;
@@ -24,6 +9,7 @@
     let eventSequence = 0;
     let lastEvent = null;
     const MIN_EVENT_INTERVAL = 50; // ms
+    let settings = {};
 
     // Event types to record
     const RECORD_EVENTS = {
@@ -56,7 +42,8 @@
 
         switch (message.action) {
             case 'startRecording':
-                startRecording(message.recordingId, message?.isNewRecord || true);
+                console.log(message)
+                startRecording(message.recordingId, message?.isNewRecord || true, message?.settings || {});
                 break;
 
             case 'stopRecording':
@@ -95,36 +82,14 @@
         }, timeout);
     };
 
-    const getRecorderStorage = () => {
-        let result = localStorage.getItem("hazel_recorder_storage");
-        if(result){
-            result = JSON.parse(result);
-            return result;
-        }
-        return null;
-    }
-
-    const getCurrentStatus = () => {
-        let result = getRecorderStorage()
-        if(result){
-            return result?.status;
-        }
-        return null;
-    };
-    const setCurrentStatus = (status, recordingId = null) => localStorage.setItem("hazel_recorder_status", JSON.stringify({
+    const setCurrentStatus = (status, recordingId = null, settings = null) => localStorage.setItem("hazel_recorder_status", JSON.stringify({
         status,
-        recordingId
+        recordingId,
+        settings: settings || {}
     }));
-    const getCurrentRecordingId = () => {
-        let result = getRecorderStorage()
-        if(result){
-            return result?.recordingId;
-        }
-        return null;
-    };
 
     // Start recording user interactions
-    function startRecording(id, isNewRecord = true) {
+    function startRecording(id, isNewRecord = true, newSettings = null) {
         console.log('started with id', id,'is new record',  isNewRecord)
         if (isRecording) {
             stopRecording();
@@ -132,13 +97,14 @@
 
         // if(getCurrentStatus() == null || getCurrentStatus() === 'stopped'){
         // }
-        setCurrentStatus('recording', id);
+        setCurrentStatus('recording', id, newSettings);
 
         console.log('Recording started with ID:', id);
         recordingId = id;
         isRecording = true;
         isPaused = false;
         eventSequence = 0;
+        settings = newSettings || {};
 
         runAll([
             () => isNewRecord ? recordInitialState() : '',
@@ -154,7 +120,7 @@
         ]);
 
         // Create a synthetic test event to verify the recording pipeline
-        setTimeout(() => {
+        setInterval(() => {
             if (isRecording) {
                 sendToContentScript({
                     type: 'testEvent',
@@ -164,28 +130,32 @@
                     sequence: eventSequence++
                 });
             }
-        }, 1000);
+        }, 15_000);
     }
 
     // Inject the recording toolbar
     function injectToolbar() {
         // Check if toolbar script is already injected
         if (!document.getElementById('browser-recorder-toolbar-script')) {
-            // Inject the toolbar script
-            const script = document.createElement('script');
-            script.id = 'browser-recorder-toolbar-script';
-            script.src = chrome?.runtime?.getURL('content/recording-toolbar.js');
-            (document.head || document.documentElement).appendChild(script);
-
-            // Wait for script to load
-            script.onload = function() {
-                // Show the toolbar
-                window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
-                    detail: {
-                        action: 'showRecordingToolbar'
-                    }
-                }));
-            };
+            try {
+                // Inject the toolbar script
+                // const script = document.createElement('script');
+                // script.id = 'browser-recorder-toolbar-script';
+                // script.src = chrome?.runtime?.getURL('content/recording-toolbar.js');
+                // (document.head || document.documentElement).appendChild(script);
+                //
+                // // Wait for script to load
+                // script.onload = function() {
+                //     // Show the toolbar
+                //     window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
+                //         detail: {
+                //             action: 'showRecordingToolbar'
+                //         }
+                //     }));
+                // };
+            }catch (e){
+                console.error('Error injecting toolbar script:', e);
+            }
         } else {
             // Script already injected, just show the toolbar
             window.dispatchEvent(new CustomEvent('BrowserRecorder_ToPage', {
@@ -322,8 +292,8 @@
         // window.addEventListener('beforeunload', beforeUnloadHandler, {once: true});
 
         // Record AJAX request (XHR & fetch)
-        // interceptXHR();
-        // interceptFetch();
+        interceptXHR();
+        interceptFetch();
     }
 
     // Add multiple event listeners and track them
@@ -416,13 +386,15 @@
             // Store original methods
             const originalOpen = xhr.open;
             const originalSend = xhr.send;
+            const originalSetRequestHeader = xhr.setRequestHeader;
 
             // Track request data
             let requestData = {
                 method: '',
                 url: '',
                 async: true,
-                data: null
+                data: null,
+                headers: {}
             };
 
             // Override open method
@@ -435,22 +407,46 @@
 
             // Override send method
             xhr.send = function(data) {
+                console.log(data)
+                if(typeof data == 'object'){
+                    data = deepCompileObject(data);
+                }else{
+                    try {
+                        data = JSON.stringify(deepCompileObject(JSON.parse(data)));
+                    }catch (e){
+                        if(typeof data == 'string'){
+                            data = compileText(data);
+                        }
+                    }
+                }
                 requestData.data = data;
 
-                const eventData = {
-                    type: 'xhr',
-                    method: requestData.method,
-                    url: requestData.url,
-                    async: requestData.async,
-                    data: requestData.data ? String(requestData.data).substring(0, 1000) : null,
-                    timestamp: Date.now(),
-                    sequence: eventSequence++
-                };
+                console.log(requestData)
 
-                sendToContentScript(eventData);
-                incrementToolbarEventCount();
+                if(!!settings?.recordNetworkRequests) {
+                    const eventData = {
+                        type: 'xhr',
+                        method: requestData.method,
+                        url: requestData.url,
+                        headers: requestData?.headers || {},
+                        async: requestData.async,
+                        data: requestData?.data,
+                        timestamp: Date.now(),
+                        sequence: eventSequence++
+                    };
+
+                    sendToContentScript(eventData);
+                    incrementToolbarEventCount();
+                }
+
                 return originalSend.apply(this, arguments);
             };
+
+            xhr.setRequestHeader = function(key, value) {
+                requestData.headers[key] = compileText(value);
+
+                return originalSetRequestHeader.apply(this, [key, requestData.headers[key]]);
+            }
 
             return xhr;
         };
@@ -474,19 +470,33 @@
 
             const url = typeof input === 'string' ? input : input.url;
             const method = init && init.method ? init.method : 'GET';
-            const data = init && init.body ? init.body : null;
+            let data = init && init.body ? init.body : null;
+            let headers = init && init.headers ? init.headers : null;
 
-            const eventData = {
-                type: 'fetch',
-                method: method,
-                url: url,
-                data: data ? String(data).substring(0, 1000) : null,
-                timestamp: Date.now(),
-                sequence: eventSequence++
-            };
+            console.log('headers', headers)
+            headers = deepCompileObject(headers);
+            console.log('compiled headers', headers)
 
-            sendToContentScript(eventData);
-            incrementToolbarEventCount();
+            if(typeof data == 'object'){
+                data = deepCompileObject(data);
+            }else{
+                data = encodeURIComponent(compileText(decodeURIComponent(data)));
+            }
+
+            if(!!settings?.recordNetworkRequests){
+                const eventData = {
+                    type: 'fetch',
+                    method: method,
+                    url: url,
+                    headers,
+                    data: data ? String(data).substring(0, 1000) : null,
+                    timestamp: Date.now(),
+                    sequence: eventSequence++
+                };
+
+                sendToContentScript(eventData);
+                incrementToolbarEventCount();
+            }
             return originalFetch.apply(this, arguments);
         };
     }
@@ -548,8 +558,8 @@
     // Helper function to get valid class list
     function getValidClasses(element) {
         return (element?.className || '')
-            .split(/\s+/)
-            .filter(c => c.length > 0 && !c.startsWith('_'));
+            ?.split(/\s+/)
+            ?.filter(c => c.length > 0 && !c.startsWith('_')) || [];
     }
 
     // Get index among siblings with same tag and classes
@@ -744,6 +754,8 @@
         const selector = getElementSelector(event.target);
         if (!selector) return;
 
+        console.log('keyboard event', event)
+
         const eventData = {
             type: event.type,
             selector: selector,
@@ -769,7 +781,6 @@
     // Handle input/change events
     function handleInputEvent(event) {
         if (!isRecording || isPaused || !shouldRecordEvent()) return;
-
         // Skip if not an input-like element
         if (!isInteractiveElement(event.target)) return;
 
@@ -789,6 +800,7 @@
         sendToContentScript(eventData);
         lastEvent = eventData;
         incrementToolbarEventCount();
+
     }
 
     // Handle navigation events
@@ -889,6 +901,74 @@
         incrementToolbarEventCount();
     }
 
+    function compileText(templateString) {
+        if (typeof templateString !== 'string') {
+            console.error("CompileText Error: templateString must be a string.");
+            return "";
+        }
+        if (typeof settings !== 'object' || settings === null) {
+            console.error("CompileText Error: data must be a non-null object.");
+            return templateString;
+        }
+
+        const regex = /\{\{\s*(.*?)\s*\}\}/g;
+
+        // 4. Return the resulting string
+        return templateString.replace(regex, (match, variableName) => {
+
+            let res = settings.customVariables.find(variable => variable.name === variableName)
+
+            if(!!res){
+                if(res.type === 'plain'){
+                    return res.value;
+                }
+
+                if(res.type === 'ai'){
+                    return res.value + ' ai generated';
+                }
+
+                if(res.type === 'api'){
+                    return res.value + ' api generated';
+                }
+            }
+
+            console.warn(`CompileText Warning: Variable "${variableName}" not found in data object.`);
+            return match;
+        });
+    }
+
+
+    function deepCompileObject(initObj){
+        if(typeof initObj !== 'object' || initObj == null) return initObj;
+        const search = (obj) => {
+            if(typeof obj !== 'object' || obj == null) return obj;
+            let newObj  = {}
+
+            Object.keys(obj).forEach(key => {
+                if (typeof obj[key] === 'object') {
+                    newObj[key] = search(obj[key]);
+                }else{
+                    if(typeof obj[key] == 'string'){
+                        newObj[key] = compileText(obj[key]);
+                    }else{
+                        newObj[key] = obj[key];
+                    }
+                }
+            });
+
+            return newObj;
+        }
+
+        return search(initObj);
+    }
+
+    function debounce(func, timeout = 300){
+        let timer;
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => { func.apply(this, args); }, timeout);
+        };
+    }
 
     console.log('Browser Recorder: Recorder script initialized');
 })();
