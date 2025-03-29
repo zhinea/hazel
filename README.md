@@ -1,5 +1,8 @@
 # 🎬 Hazel Browser Recorder 🎬
 
+![image](https://github.com/user-attachments/assets/0a5b4d64-0562-4bab-94ff-5fd424a23433)
+
+
 ## ✨ Automate Your Browser Like Magic! ✨
 
 Hazel is a powerful Chrome extension that lets you record, save, and replay your browser interactions with cloud synchronization capabilities. Say goodbye to repetitive tasks! 🎉
