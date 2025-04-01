@@ -1,6 +1,7 @@
 # 🎬 Hazel Browser Recorder 🎬
 
-![image](https://github.com/user-attachments/assets/0a5b4d64-0562-4bab-94ff-5fd424a23433)
+![image](https://github.com/user-attachments/assets/f483b6f5-ac99-4934-b056-37b87a77b434)
+
 
 
 ## ✨ Automate Your Browser Like Magic! ✨
