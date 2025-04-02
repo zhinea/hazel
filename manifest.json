@@ -1,15 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "Browser Recorder",
+  "name": "Hazel  Browser Recorder",
   "version": "1.0.0",
-  "description": "Record and replay browser interactions",
+  "description": "Record and replay browser interactions or replay it on the cloud!",
   "permissions": [
     "storage",
     "tabs",
     "activeTab",
     "scripting",
-    "cookies",
-    "alarms"
+    "cookies"
   ],
   "host_permissions": [
     "<all_urls>",
@@ -20,6 +19,12 @@
   },
   "action": {
     "default_popup": "popup/popup.html"
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
   },
   "content_scripts": [
     {
@@ -35,8 +40,7 @@
         "lib/event-types.js",
         "content/player-new.js",
         "content/recording-toolbar.js",
-        "content/recording-settings-modal.js",
-        "content/api-service.js"
+        "content/recording-settings-modal.js"
       ],
       "matches": ["<all_urls>"]
     }

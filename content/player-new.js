@@ -89,7 +89,7 @@ if(window.location.protocol === 'chrome:'){
     }
 
     function updateToolboxUI(status) {
-        console.log("Toolbox UI: Received status update", status);
+        console.debug("Toolbox UI: Received status update", status);
         if (!status) return;
 
         // Ensure toolbox is visible when playback starts or resumes
@@ -163,7 +163,7 @@ if(window.location.protocol === 'chrome:'){
 
         // Hide toolbox automatically after completion? (Optional)
         if (status.state === 'complete' || (status.state === 'idle' && status.totalEvents > 0)) { // Hide after completion or idle after running
-            // setTimeout(hideToolbox, 3000); // Hide after 3 seconds
+            setTimeout(hideToolbox, 5000); // Hide after 3 seconds
         }
     }
 
@@ -215,12 +215,15 @@ if(window.location.protocol === 'chrome:'){
 
 
     chrome.runtime.onMessage.addListener( (message, sender, sendResponse) => {
-        console.log('Player received message:', message)
+        console.debug('Player received message:', message)
+
+        if(message?.settings){
+            settings = message?.settings || {}
+        }
 
         try {
             switch (message.action) {
                 case 'hazel_player_initializePlayback':
-                    settings = message?.settings || {}
                     updateToolboxUI({ state: 'initializing', currentEvent: 0, totalEvents: '?', progress: 0 });
                     sendResponse({
                         success: true,
@@ -228,6 +231,7 @@ if(window.location.protocol === 'chrome:'){
                     })
                     break;
                 case 'hazel_player_executeEvent':
+
                     executeEvent(message.data.event)
                     sendResponse({
                         success: true
@@ -250,7 +254,7 @@ if(window.location.protocol === 'chrome:'){
 
     // Execute a recorded event
     function executeEvent(event) {
-        console.log('Executing event:', event);
+        console.debug('Executing event:', event);
 
         // If event type is missing, try to determine it
         if (!event.type) {
@@ -319,7 +323,7 @@ if(window.location.protocol === 'chrome:'){
 
                 case 'testEvent':
                     // Test event from recorder, just log it
-                    console.log('Test event received:', event);
+                    console.debug('Test event received:', event);
                     break;
 
                 default:
@@ -425,12 +429,12 @@ if(window.location.protocol === 'chrome:'){
             if (element.type === 'checkbox' || element.type === 'radio') {
                 element.checked = event.value;
             } else {
-                element.value = compileText(event.value);
+                element.value = event.value;
             }
         } else if (element.tagName === 'SELECT') {
             element.value = event.value;
         } else if (element.tagName === 'TEXTAREA') {
-            element.value = compileText(event.value);
+            element.value = event.value;
         }
 
         // Create and dispatch input event
@@ -502,7 +506,7 @@ if(window.location.protocol === 'chrome:'){
             // First, try the exact selector
             let element = document.querySelector(selector);
             if (element) {
-                console.log('Found element with exact selector:', selector);
+                console.debug('Found element with exact selector:', selector);
                 return element;
             }
 
@@ -513,7 +517,7 @@ if(window.location.protocol === 'chrome:'){
             if (simplifiedSelector !== selector) {
                 element = document.querySelector(simplifiedSelector);
                 if (element) {
-                    console.log('Found element with simplified selector:', simplifiedSelector);
+                    console.debug('Found element with simplified selector:', simplifiedSelector);
                     return element;
                 }
             }
@@ -526,7 +530,7 @@ if(window.location.protocol === 'chrome:'){
                 if (lastPartWithAttr) {
                     element = document.querySelector(lastPartWithAttr);
                     if (element) {
-                        console.log('Found element with attribute selector:', lastPartWithAttr);
+                        console.debug('Found element with attribute selector:', lastPartWithAttr);
                         return element;
                     }
                 }
@@ -578,28 +582,67 @@ if(window.location.protocol === 'chrome:'){
 
         const regex = /\{\{\s*(.*?)\s*\}\}/g;
 
-        // 4. Return the resulting string
-        return templateString.replace(regex, (match, variableName) => {
-
-            let res = settings.customVariables.find(variable => variable.name === variableName)
-
-            if(!!res){
-                if(res.type === 'plain'){
-                    return res.value;
+        return templateString.replace(regex, async (match, variableName) => {
+            let settingResult = settings.customVariables.find(variable => variable.name === variableName)
+            if(!!settingResult){
+                if(settingResult.type === 'plain'){
+                    console.log('plain text')
+                    return settingResult.value;
                 }
 
-                if(res.type === 'ai'){
-                    return res.value + ' ai generated';
+                if(settingResult.type === 'ai'){
+                    const aiResponse = await fetchAPI('POST', '/v1/ai/faker', {
+                        name: settingResult.name,
+                        prompt: settingResult.prompt,
+                        // temperature: settingResult.temperature,
+                        // top_p: settingResult.top_p
+                    })
+                    console.log(aiResponse)
+
+                    if(aiResponse?.code === 'ok'){
+                        return aiResponse?.data?.answer || settingResult?.value || "";
+                    }
+
+                    return settingResult?.value || "";
                 }
 
-                if(res.type === 'api'){
-                    return res.value + ' api generated';
+                if(settingResult.type === 'api'){
+                    return settingResult.value + ' api generated';
                 }
             }
+
 
             console.warn(`CompileText Warning: Variable "${variableName}" not found in data object.`);
             return match;
         });
+    }
+
+    async function replaceAsync(str, regex, asyncFn) {
+        const promises = [];
+        str.replace(regex, (full, ...args) => {
+            promises.push(asyncFn(full, ...args));
+            return full;
+        });
+        const data = await Promise.all(promises);
+        return str.replace(regex, () => data.shift());
+    }
+
+    async function fetchAPI(method, url, payload){
+        return new Promise(resolve => {
+            return chrome.runtime.sendMessage({
+                action: 'fetch',
+                method,
+                url,
+                payload
+            }, response => {
+                if (chrome.runtime.lastError) {
+                    console.error('Error sending event to background:', chrome.runtime.lastError);
+                } else {
+                    console.log('Event sent to background, response:', response);
+                }
+                resolve(response)
+            })
+        })
     }
 
 }

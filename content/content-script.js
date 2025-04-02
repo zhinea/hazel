@@ -34,6 +34,17 @@ if (window.location.protocol === 'chrome:') {
         // Handle other message types from player as needed
     });
 
+    window.addEventListener('BrowserRecorder_Direct', (event) => {
+        const message = event.detail;
+        console.log('BrowserRecorder_Direct', message)
+        chrome.runtime.sendMessage(message, response => {
+            console.log('Navigation request sent to background script, response:', response);
+            window.dispatchEvent(new CustomEvent('BrowserRecorder_DirectResponse', {
+                detail: response
+            }))
+        });
+    })
+
     // Listen for messages from the recorder or modal
     window.addEventListener('BrowserRecorder_FromPage', (event) => {
         const message = event.detail;

@@ -1,6 +1,6 @@
 // recorder.js - Injected into the page to record user actions
 (function() {
-    console.log('Recorder script loaded and initializing');
+    console.debug('Recorder script loaded and initializing');
 
     // State
     let isRecording = false;
@@ -37,12 +37,11 @@
 
     // Communication with content script
     window.addEventListener('BrowserRecorder_ToPage', (event) => {
-        console.log('Recorder received message:', event.detail);
+        console.debug('Recorder received message:', event.detail);
         const message = event.detail;
 
         switch (message.action) {
             case 'startRecording':
-                console.log(message)
                 startRecording(message.recordingId, message?.isNewRecord || true, message?.settings || {});
                 break;
 
@@ -75,7 +74,6 @@
 
     const runAll = (fns, timeout = 100) => {
         if (fns.length === 0) return;
-        console.log(fns, fns.length)
         setTimeout(() => {
             fns.shift()();
             runAll(fns, timeout);
@@ -90,7 +88,7 @@
 
     // Start recording user interactions
     function startRecording(id, isNewRecord = true, newSettings = null) {
-        console.log('started with id', id,'is new record',  isNewRecord)
+        console.debug('started with id', id,'is new record',  isNewRecord)
         if (isRecording) {
             stopRecording();
         }
@@ -99,7 +97,7 @@
         // }
         setCurrentStatus('recording', id, newSettings);
 
-        console.log('Recording started with ID:', id);
+        console.debug('Recording started with ID:', id);
         recordingId = id;
         isRecording = true;
         isPaused = false;
@@ -171,7 +169,7 @@
         if (!isRecording || isPaused) return;
 
         isPaused = true;
-        console.log('Recording paused');
+        console.debug('Recording paused');
 
         // Send status to content script
         sendToContentScript({
@@ -188,7 +186,7 @@
         if (!isRecording || !isPaused) return;
 
         isPaused = false;
-        console.log('Recording resumed');
+        console.debug('Recording resumed');
 
         // Send status to content script
         sendToContentScript({
@@ -204,7 +202,7 @@
     function stopRecording() {
         if (!isRecording) return;
 
-        console.log('Recording stopped:', recordingId);
+        console.debug('Recording stopped:', recordingId);
 
         // Remove all event listeners
         removeEventListeners();
@@ -312,7 +310,7 @@
         //     timestamp: Date.now(),
         //     sequence: eventSequence++
         // })
-        console.log('unload')
+        console.debug('unload window')
         window.removeEventListener('beforeunload', beforeUnloadHandler);
     };
 
@@ -407,7 +405,6 @@
 
             // Override send method
             xhr.send = function(data) {
-                console.log(data)
                 if(typeof data == 'object'){
                     data = deepCompileObject(data);
                 }else{
@@ -420,8 +417,6 @@
                     }
                 }
                 requestData.data = data;
-
-                console.log(requestData)
 
                 if(!!settings?.recordNetworkRequests) {
                     const eventData = {
@@ -473,9 +468,9 @@
             let data = init && init.body ? init.body : null;
             let headers = init && init.headers ? init.headers : null;
 
-            console.log('headers', headers)
+            console.debug('headers', headers)
             headers = deepCompileObject(headers);
-            console.log('compiled headers', headers)
+            console.debug('compiled headers', headers)
 
             if(typeof data == 'object'){
                 data = deepCompileObject(data);
@@ -754,8 +749,6 @@
         const selector = getElementSelector(event.target);
         if (!selector) return;
 
-        console.log('keyboard event', event)
-
         const eventData = {
             type: event.type,
             selector: selector,
@@ -924,11 +917,11 @@
                 }
 
                 if(res.type === 'ai'){
-                    return res.value + ' ai generated';
+                    return res.value;
                 }
 
                 if(res.type === 'api'){
-                    return res.value + ' api generated';
+                    return res.value;
                 }
             }
 
@@ -969,6 +962,7 @@
             timer = setTimeout(() => { func.apply(this, args); }, timeout);
         };
     }
+
 
     console.log('Browser Recorder: Recorder script initialized');
 })();

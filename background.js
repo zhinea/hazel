@@ -8,7 +8,7 @@ let isPaused = false;
 const AUTH_COOKIE_NAME = 'oidc-auth';
 const AUTH_DOMAIN_URL = 'https://stag-hazel.flowless.my.id';
 const AUTH_ME_ENDPOINT = `${AUTH_DOMAIN_URL}/me`;
-const API_BASE_URL = AUTH_DOMAIN_URL; // Assuming API is on the same domain
+const API_BASE_URL = 'https://hazel.flowless.my.id'; // Assuming API is on the same domain
 const AUTH_STORAGE_KEY = 'hazelAuthToken';
 let user; // Stores user info fetched from /me
 
@@ -17,6 +17,7 @@ const FRESH_PLAYER = {
     isPlaying: false,
     recordingId: null,
     events: [],
+    settings: {},
     currentEventIndex: 0,
     playbackSpeed: 1.0, // 1.0 is normal speed
     lastPlaybackTime: 0,
@@ -109,6 +110,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     let isAsync = false;
 
     try {
+        if(message.action === 'fetch'){
+            console.log('disini')
+            isAsync = true;
+            (async() => {
+                try {
+                    console.log(message)
+                    const response = await callApi(message.url, message.method, message.payload)
+                    console.log(response)
+                    sendResponse(response)
+                }catch(e){
+                    sendResponse(e)
+                }
+            })();
+        }else
         if (message.action === 'checkAuthStatus') {
             isAsync = true;
             (async() => {
@@ -337,7 +352,7 @@ function playRecording(recordingId, tabId) {
             chrome.scripting.executeScript({
                 target: { tabId: tabId },
                 files: ['content/player-new.js']
-            }, () => {
+            }, async () => {
                 if (chrome.runtime.lastError) {
                     console.error('Error injecting script:', chrome.runtime.lastError);
                     sendPlaybackUpdate(tabId, { state: 'error', errorMessage: 'Failed to inject playback script.' });
@@ -346,8 +361,10 @@ function playRecording(recordingId, tabId) {
 
                 player.isPlaying = true; // Set early, but 'initializing' state
                 player.recordingId = recordingId;
-                player.events = copyVar(recordingData.events).sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+                player.events = copyVar(recordingData.events)
+                    .sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
                 player.currentEventIndex = 0;
+                player.settings = recordingData.settings || {};
                 player.playbackStatus = {
                     tabId: tabId,
                     totalEvents: player.events.length,
@@ -357,12 +374,43 @@ function playRecording(recordingId, tabId) {
                     errorMessage: null
                 };
 
+                await (async () => {
+                    let data = {};
+                    player.events
+                        .filter(event => event.type === 'input' || event.type === 'change')
+                        .forEach(ev => {
+                            data[ev.selector] = ev
+                        })
+
+                    console.log(data)
+
+                    let result = await Promise.all(Object.values(data).map(async(e) => {
+                        return Object.assign({}, e, {
+                            value: await compileText(e.value)
+                        });
+                    }))
+
+                    console.log('result', result)
+
+                    player.events = player.events.map((e) => {
+                        let find = result.find(r => r.sequence == e.sequence)
+                        console.log('found', find, e.sequence)
+                        if(find){
+                            return find
+                        }
+                        return e
+                    })
+                })()
+
+
+
                 sendPlaybackUpdate(tabId, player.playbackStatus);
 
                 const initializePlayback = (cb) => {
                     chrome.tabs.sendMessage(tabId, {
                         action: 'hazel_player_initializePlayback',
-                        recordingId
+                        recordingId,
+                        settings: player.settings
                     },  (response) => {
                         if (chrome.runtime.lastError) {
                             console.error('Error sending message to tab:', chrome.runtime.lastError);
@@ -382,14 +430,8 @@ function playRecording(recordingId, tabId) {
                         return;
                     }
 
-                    player.isPlaying = true;
-                    player.recordingId = recordingId;
                     player.playbackStatus.state = 'playing';
-                    // deep copy and sort events
-                    player.events = copyVar(recordingData.events)
-                        .sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
 
-                    player.playbackStatus.totalEvents = recordingData.events.length;
                     let errCount = {};
                     let errRetryEvent = 0;
                     const MAX_ERROR_RETRIES = 5; // Retries for a single event
@@ -423,11 +465,12 @@ function playRecording(recordingId, tabId) {
                                 event,
                                 recordingId: player.recordingId,
                                 playbackSpeed: player.playbackSpeed
-                            }
+                            },
+                            settings: player.settings
                         }, response => {
                             catchError(response)
 
-                            if (!response.success) {
+                            if (!response?.success) {
                                 console.log('Gagal play event')
 
                                 if (!errCount[player.currentEventIndex]) {
@@ -469,8 +512,9 @@ function playRecording(recordingId, tabId) {
                                             console.log('Gagal playback: retry connection playback')
                                             setTimeout(() => {
                                                 retryConnectionPlayback()
-                                            }, 100)
+                                            }, 500 * errRetryEvent)
                                         } else {
+                                            errRetryEvent = 0;
                                             successCb()
                                         }
                                     })
@@ -713,7 +757,102 @@ function catchError(response, context = 'Unknown'){
     }
 }
 
+async function compileText(templateString) {
+    if (typeof templateString !== 'string') {
+        console.error("CompileText Error: templateString must be a string.");
+        return "";
+    }
+    if (typeof player?.settings !== 'object' || player?.settings === null) {
+        console.error("CompileText Error: data must be a non-null object.");
+        return templateString;
+    }
 
+    const regex = /\{\{\s*(.*?)\s*\}\}/g;
+
+    return replaceAsync(templateString, regex, async (match, variableName) => {
+        let settingResult = player?.settings?.customVariables?.find(variable => variable.name === variableName)
+        if(!!settingResult){
+            if(settingResult.type === 'plain'){
+                console.log('plain text')
+                return settingResult.value;
+            }
+
+            if(settingResult.type === 'ai'){
+                const aiResponse = await callApi( '/v1/ai/faker', 'POST', {
+                    name: settingResult.name,
+                    prompt: settingResult.prompt,
+                    // temperature: settingResult.temperature,
+                    // top_p: settingResult.top_p
+                })
+                console.log(aiResponse)
+
+                if(aiResponse?.code === 'ok'){
+                    return aiResponse?.data?.answer || settingResult?.value || "";
+                }
+
+                return settingResult?.value || "";
+            }
+
+            if(settingResult.type === 'api'){
+                if(!settingResult?.apiUrl.startsWith('http')){
+                    return settingResult?.value || '';
+                }
+                const res = await fetch(settingResult?.apiUrl)
+                if(res.status === 200){
+                    const data = await res.json()
+                    return getValueFromJsonPath(data, settingResult?.jsonPath) || settingResult?.value || '';
+                }else{
+                    return settingResult?.value || '';
+                }
+            }
+        }
+
+        console.warn(`CompileText Warning: Variable "${variableName}" not found in data object.`);
+        return match;
+    });
+}
+
+function getValueFromJsonPath(jsonData, path) {
+    if (!jsonData || !path) {
+        return undefined;
+    }
+    // Basic safety: split by dots and brackets, remove empty parts
+    const keys = path.match(/([^[.\]]+)|(\[\d+\])/g) || [];
+
+    let current = jsonData;
+    for (const key of keys) {
+        if (current === null || typeof current === 'undefined') {
+            return undefined; // Path leads to nowhere
+        }
+        let currentKey = key;
+        // Check if it's an array accessor like [0]
+        if (currentKey.startsWith('[') && currentKey.endsWith(']')) {
+            const index = parseInt(currentKey.slice(1, -1), 10);
+            if (isNaN(index) || !Array.isArray(current) || index < 0 || index >= current.length) {
+                return undefined; // Invalid index or not an array
+            }
+            current = current[index];
+        } else {
+            // Regular object property access
+            if (!Object.prototype.hasOwnProperty.call(current, currentKey)) {
+                return undefined; // Property doesn't exist
+            }
+            current = current[currentKey];
+        }
+    }
+    // Check if final value is null or undefined, return as is
+    return current;
+}
+
+async function replaceAsync(str, regex, asyncFn) {
+    const promises = [];
+    str.replace(regex, (full, ...args) => {
+        promises.push(asyncFn(full, ...args));
+        return full;
+    });
+    const data = await Promise.all(promises);
+    return str.replace(regex, () => data.shift());
+}
 
 // Cookie change listener (remains the same)
 chrome.cookies.onChanged.addListener(async (changeInfo) => {

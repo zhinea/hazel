@@ -868,7 +868,7 @@
     }
 
     // Handle adding the variable from the CV modal
-    function handleAddCustomVariable() {
+    async function handleAddCustomVariable() {
         if (!cvModal) return;
 
         const nameInput = cvModal.querySelector('#hazel-cv-name');
@@ -910,8 +910,22 @@
                         return; // Prevent adding
                     }
                     variableData.prompt = prompt;
-                    // Value will be generated later, maybe store prompt here too?
-                    variableData.value = '[AI Generated - Set at Playback]';
+
+                    let aiResponse = await fetchAPI('POST', '/v1/ai/faker', {
+                        name: prompt,
+                        prompt: prompt,
+                        // temperature: settingResult.temperature,
+                        // top_p: settingResult.top_p
+                    })
+                    console.debug('ai response', aiResponse)
+
+                    if(aiResponse?.code === 'ok'){
+                        variableData.value = aiResponse?.data?.answer || "";
+                    }else{
+                        variableData.value = "[AI Error. Please try again later!]";
+                    }
+
+
                     break;
                 case 'api':
                     const apiUrl = apiUrlInput ? apiUrlInput.value.trim() : '';
@@ -927,7 +941,8 @@
                         return; // Prevent adding
                     }
                     // Optionally validate path against fetched data if available
-                    if (apiResponseData && !getValueFromJsonPath(apiResponseData, jsonPath)) {
+                    let valuePathJson = getValueFromJsonPath(apiResponseData, jsonPath);
+                    if (apiResponseData && !valuePathJson) {
                         if (!confirm(`Warning: The path "${jsonPath}" did not resolve to a value in the last test response. Add anyway?`)) {
                             jsonPathInput?.focus();
                             return; // Prevent adding if user cancels
@@ -937,7 +952,7 @@
                     variableData.apiUrl = apiUrl;
                     variableData.jsonPath = jsonPath;
                     // Value will be fetched later
-                    variableData.value = '[API Response - Fetched at Playback]';
+                    variableData.value = valuePathJson;
                     break;
                 default:
                     console.error("Invalid variable type:", currentVarType);
@@ -1000,6 +1015,23 @@
         window.dispatchEvent(new CustomEvent('BrowserRecorder_FromPage', {
             detail: data
         }));
+    }
+
+    async function fetchAPI(method, url, payload){
+        return new Promise(resolve => {
+            window.dispatchEvent(new CustomEvent('BrowserRecorder_Direct', {
+                detail: {
+                    action: 'fetch',
+                    method,
+                    url,
+                    payload
+                }
+            }))
+
+            window.addEventListener('BrowserRecorder_DirectResponse', e => {
+                resolve(e.detail)
+            })
+        })
     }
 
     console.log('Recording Settings Modal (with Custom Var Modal) initialized');

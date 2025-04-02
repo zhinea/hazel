@@ -292,7 +292,7 @@
                 eventCount = status.eventCount || 0;
                 recordingState = status.state || 'recording';
 
-                console.log(`Loaded recording status for ${recordingId}:`, status);
+                console.debug(`Loaded recording status for ${recordingId}:`, status);
                 return true;
             } catch (e) {
                 console.error('Error parsing stored recording status:', e);
