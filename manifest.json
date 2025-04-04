@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Hazel  Browser Recorder",
+  "name": "Hazel Browser Recorder",
   "version": "1.0.0",
   "description": "Record and replay browser interactions or replay it on the cloud!",
   "permissions": [
