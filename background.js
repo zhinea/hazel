@@ -2,24 +2,23 @@
 
 // Global state
 let isRecording = false;
-let currentRecordingId = null; // This will now store the backend record ID
+let currentRecordingId = null; 
 let currentTabId = null;
 let isPaused = false;
 const AUTH_COOKIE_NAME = 'oidc-auth';
-const AUTH_DOMAIN_URL = 'https://stag-hazel.flowless.my.id';
+const AUTH_DOMAIN_URL = 'https://hazel.flowless.my.id';
 const AUTH_ME_ENDPOINT = `${AUTH_DOMAIN_URL}/me`;
-const API_BASE_URL = 'https://hazel.flowless.my.id'; // Assuming API is on the same domain
+const API_BASE_URL = 'https://hazel.flowless.my.id';
 const AUTH_STORAGE_KEY = 'hazelAuthToken';
-let user; // Stores user info fetched from /me
+let user; 
 
 const FRESH_PLAYER = {
-    // ... (keep FRESH_PLAYER as before)
     isPlaying: false,
     recordingId: null,
     events: [],
     settings: {},
     currentEventIndex: 0,
-    playbackSpeed: 1.0, // 1.0 is normal speed
+    playbackSpeed: 1.0, 
     lastPlaybackTime: 0,
     eventTimeoutId: null,
     playbackStatus: {
