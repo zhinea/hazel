@@ -4,7 +4,5 @@
     <content url="file://$MODULE_DIR$" />
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="browser-recorder-api" />
-    <orderEntry type="module" module-name="vite-vue3-browser-extension-v3" />
   </component>
 </module>
