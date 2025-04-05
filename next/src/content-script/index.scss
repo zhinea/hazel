@@ -1,0 +1,73 @@
+// This file is used to style the iframe that is injected into the page
+//.crx-iframe {
+//  border: none;
+//  border-radius: 8px;
+//  box-shadow:
+//    0 2px 4px rgba(0, 0, 0, 0.2),
+//    0 -1px 0px rgba(0, 0, 0, 0.02);
+//  background-color: #fff;
+//  margin: 2em;
+//  position: fixed;
+//  bottom: 0;
+//  right: 0;
+//  width: 420px;
+//  min-height: 340px;
+//}
+.crx-iframe-wrapper {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: white;
+  
+  &.iframe-hidden {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.crx-iframe {
+  border: none;
+  width: 300px;
+  height: 400px;
+  display: block;
+}
+
+.drag-handle {
+  background: #f0f0f0;
+  height: 24px;
+  cursor: move;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+}
+
+.drag-indicator {
+  color: #888;
+  font-size: 14px;
+}
+
+.toggle-button {
+  background: none;
+  border: none;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+  }
+  
+  &:focus {
+    outline: none;
+  }
+}

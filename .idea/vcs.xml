@@ -3,5 +3,6 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../browser-recorder-api" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../vite-vue3-browser-extension-v3" vcs="Git" />
   </component>
 </project>
