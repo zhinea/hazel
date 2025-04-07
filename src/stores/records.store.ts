@@ -1,67 +1,153 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Record } from '@/types/record'
-import {IncommingMessage} from "@/types/message";
+import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/auth.store'
+import {pushNotification} from "@/utils/notifications";
 
 export const useRecordsStore = defineStore('records', () => {
   const records = ref<Record[]>([])
   const isLoading = ref(false)
+  const authStore = useAuthStore()
 
-  // Fetch records from storage
+  // Fetch records from Supabase
   async function fetchRecords() {
     isLoading.value = true
     try {
-      const response = await chrome.runtime.sendMessage(<IncommingMessage>{
-        action: 'storage::records.all'
-      })
+      if (!authStore.isAuthenticated) {
+        pushNotification({
+          title: 'Authentication Required',
+          message: 'Please log in to access your records',
+          type: 'warning'
+        })
+        return
+      }
       
-      if (response?.status && response.data) {
-        records.value = response.data
+      const { data, error } = await supabase
+        .from('records')
+        .select('*')
+        .eq('user_id', authStore.user?.id)
+        .order('created_at', { ascending: false })
+
+      console.log(data, error)
+
+      if (error) throw error
+      
+      if (data) {
+        records.value = data
       }
     } catch (error) {
       console.error('Error fetching records:', error)
-
+      pushNotification({
+        title: 'Error',
+        message: 'Failed to fetch records',
+        type: 'error'
+      })
     } finally {
       isLoading.value = false
     }
   }
 
-  // Save records to storage
-  async function saveRecords() {
+  // Search records in Supabase
+  async function searchRecords(query: string) {
+    isLoading.value = true
     try {
-      await chrome.runtime.sendMessage({
-        action: 'storage:records.set',
-        key: 'list',
-        value: records.value
-      })
+      if (!authStore.isAuthenticated) return
+      
+      const { data, error } = await supabase
+        .from('records')
+        .select('*')
+        .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
+        .order('createdAt', { ascending: false })
+      
+      if (error) throw error
+      
+      if (data) {
+        records.value = data
+      }
     } catch (error) {
-      console.error('Error saving records:', error)
+      console.error('Error searching records:', error)
+    } finally {
+      isLoading.value = false
     }
   }
 
   // Add a new record
   async function addRecord(record: Record) {
-    records.value.push(record)
-    await saveRecords()
+    if (!authStore.isAuthenticated) return
+    
+    isLoading.value = true
+    try {
+      const { data, error } = await supabase
+        .from('records')
+        .insert(record)
+        .select()
+      
+      if (error) throw error
+      
+      if (data && data[0]) {
+        records.value.unshift(data[0])
+        pushNotification({
+          title: 'Success',
+          message: 'Record added successfully',
+          type: 'success'
+        })
+      }
+    } catch (error) {
+      console.error('Error adding record:', error)
+      pushNotification({
+        title: 'Error',
+        message: 'Failed to add record',
+        type: 'error'
+      })
+    } finally {
+      isLoading.value = false
+    }
   }
 
   // Delete a record
   async function deleteRecord(id: string) {
-    records.value = records.value.filter(r => r.id !== id)
-    await saveRecords()
+    if (!authStore.isAuthenticated) return
+    
+    isLoading.value = true
+    try {
+      const { error } = await supabase
+        .from('records')
+        .delete()
+        .eq('id', id)
+      
+      if (error) throw error
+      
+      records.value = records.value.filter(r => r.id !== id)
+      pushNotification({
+        title: 'Success',
+        message: 'Record deleted successfully',
+        type: 'success'
+      })
+    } catch (error) {
+      console.error('Error deleting record:', error)
+      pushNotification({
+        title: 'Error',
+        message: 'Failed to delete record',
+        type: 'error'
+      })
+    } finally {
+      isLoading.value = false
+    }
   }
 
   // Sort records by title
   async function sortRecords() {
+    if (!authStore.isAuthenticated) return
+    
     records.value.sort((a, b) => a.title.localeCompare(b.title))
-    await saveRecords()
   }
 
   return {
     records,
     isLoading,
     fetchRecords,
-    saveRecords,
+    searchRecords,
     addRecord,
     deleteRecord,
     sortRecords

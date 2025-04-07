@@ -1,42 +1,13 @@
 <!-- RecordsPage.vue -->
 <template>
   <div class="flex flex-col min-h-screen bg-[#121212] text-white">
-    <!-- Purple accent borders -->
-<!--    <div class="fixed top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-600 to-fuchsia-600"></div>-->
-<!--    <div class="fixed top-0 right-0 w-1 h-full bg-gradient-to-b from-purple-600 to-fuchsia-600"></div>-->
-
     <Navbar />
 
     <main class="flex-1 px-4 py-2">
       <!-- Search -->
-      <SearchBar :onSearch="setSearchQuery" />
-
+      <SearchBar :onSearch="handleSearch" :refreshRecords="refreshRecords" />
       <!-- Actions row -->
-      <div class="flex justify-between items-center mb-3">
-        <button
-            @click="syncToCloud"
-            class="flex items-center bg-[#1e1e1e] text-gray-300 py-2 px-4 rounded-md border border-gray-700 text-sm hover:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
-        >
-          <!-- cloud‑sync icon -->
-          <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="mr-2"
-          >
-            <path d="M8 17.01l4-4 4 4" />
-            <path d="M12 12.01v8" />
-            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
-          </svg>
-          Sync to cloud
-        </button>
-
+      <div class="flex justify-end items-center mb-3">
         <button
             @click="sortRecords"
             class="flex items-center text-gray-300 text-sm hover:text-white"
@@ -65,9 +36,20 @@
         </button>
       </div>
 
+      <!-- Loading state -->
+      <div v-if="recordsStore.isLoading" class="flex justify-center py-8">
+        <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+
+      <!-- No records state -->
+      <div v-else-if="recordsStore.records.length === 0" class="text-center py-8 text-gray-400">
+        <p>No records found</p>
+      </div>
+
       <!-- Records list -->
       <RecordsList
-          :records="filteredRecords"
+          v-else
+          :records="recordsStore.records"
           :onDelete="handleDelete"
       />
     </main>
@@ -75,65 +57,44 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { onMounted } from 'vue'
 import Navbar from '@/components/popup/Navbar.vue'
 import SearchBar from '@/components/popup/SearchBar.vue'
 import RecordsList from '@/components/popup/RecordsList.vue'
-import type { Record } from '@/types/record'
+import { useRecordsStore } from '@/stores/records.store'
+import { useAuthStore } from '@/stores/auth.store'
 
-// search state
-const searchQuery = ref('')
+// Initialize stores
+const recordsStore = useRecordsStore()
+const authStore = useAuthStore()
 
-// initial sample data
-const records = ref<Record[]>([
-  {
-    id: '1',
-    title: 'Twitter Trends to Google',
-    description: 'Automatically tracks Twitter trends and searches them on Google',
-    createdAt: new Date('2023-05-10'),
-  },
-  {
-    id: '2',
-    title: 'Google Keyword Research',
-    description: 'Extracts keyword data from Google Search Console',
-    createdAt: new Date('2023-06-15'),
-  },
-  {
-    id: '3',
-    title: 'Generate lorem ipsum',
-    description: 'Creates custom lorem ipsum text based on parameters',
-    createdAt: new Date('2023-07-22'),
-  },
-  {
-    id: '4',
-    title: 'Search in ProductHunt',
-    description: 'Searches for products on ProductHunt and extracts data',
-    createdAt: new Date('2023-08-05'),
+// Fetch records on component mount
+onMounted(async () => {
+  if (authStore.isAuthenticated) {
+    await recordsStore.fetchRecords()
   }
-])
-
-// computed filter
-const filteredRecords = computed(() =>
-    records.value.filter((r) =>
-        r.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        r.description.toLowerCase().includes(searchQuery.value.toLowerCase())
-    )
-)
+})
 
 // handlers
-function setSearchQuery(q: string) {
-  searchQuery.value = q
+function handleSearch(query: string) {
+  recordsStore.searchRecords(query)
 }
 
 function handleDelete(id: string) {
-  records.value = records.value.filter((r) => r.id !== id)
+  recordsStore.deleteRecord(id)
 }
 
-function syncToCloud() {
-  console.log('Sync to cloud')
+function refreshRecords() {
+  recordsStore.fetchRecords()
 }
 
 function sortRecords() {
-  console.log('Sort')
+  recordsStore.sortRecords()
+}
+
+function showAddRecordModal() {
+  // Implement modal for adding new records
+  // This would be implemented in a separate component
+  console.log('Show add record modal')
 }
 </script>

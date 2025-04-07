@@ -1,12 +1,12 @@
 import {BasicResponseServer, IncommingMessage} from "@/types/message";
 import {StorageService} from "@/background/services/storage.service";
+import {PopupRoute} from "@/background/routes/popup.route";
 
 chrome.runtime.onMessage.addListener( (message: IncommingMessage, sender, sendResponse: (res: any) => void) => {
 
   (async () => {
     try {
       if(message?.action?.startsWith('storage::')){
-
         let action = message?.action?.replace('storage::','');
         let namespaces = action.split('.')
 
@@ -59,8 +59,21 @@ chrome.runtime.onMessage.addListener( (message: IncommingMessage, sender, sendRe
           }
         }
       }
-    }catch (er){
 
+      if(message?.action?.startsWith('popup::')){
+        return new PopupRoute(message).handle(sendResponse);
+      }
+
+      sendResponse({
+        status: false,
+        message: "Whoops, the action is not valid!"
+      } as BasicResponseServer<void>);
+    }catch (er){
+      console.error(er)
+      sendResponse({
+        status: false,
+        message: er?.message || 'Something went wrong!'
+      } as BasicResponseServer<void>);
     }
   })();
 

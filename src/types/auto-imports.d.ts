@@ -7,6 +7,7 @@
 export {}
 declare global {
   const $t: typeof import('vue-i18n')['$t']
+  const Config: typeof import('../utils/config')['Config']
   const EffectScope: typeof import('vue')['EffectScope']
   const Gumroad: typeof import('../utils/payment/gumroad')['Gumroad']
   const Notification: typeof import('notivue')['Notification']
@@ -47,6 +48,7 @@ declare global {
   const defineStore: typeof import('pinia')['defineStore']
   const eagerComputed: typeof import('@vueuse/core')['eagerComputed']
   const effectScope: typeof import('vue')['effectScope']
+  const env: typeof import('../utils/config')['env']
   const extPay: typeof import('../utils/payment/extPay')['extPay']
   const extendRef: typeof import('@vueuse/core')['extendRef']
   const firebaseApp: typeof import('../utils/firebase')['firebaseApp']
@@ -65,10 +67,12 @@ declare global {
   const inject: typeof import('vue')['inject']
   const injectLocal: typeof import('@vueuse/core')['injectLocal']
   const isDefined: typeof import('@vueuse/core')['isDefined']
+  const isObject: typeof import('../utils/common')['isObject']
   const isProxy: typeof import('vue')['isProxy']
   const isReactive: typeof import('vue')['isReactive']
   const isReadonly: typeof import('vue')['isReadonly']
   const isRef: typeof import('vue')['isRef']
+  const login: typeof import('../lib/auth')['login']
   const makeDestructurable: typeof import('@vueuse/core')['makeDestructurable']
   const makeDraggable: typeof import('../utils/draggable')['makeDraggable']
   const mapActions: typeof import('pinia')['mapActions']
@@ -77,6 +81,7 @@ declare global {
   const mapStores: typeof import('pinia')['mapStores']
   const mapWritableState: typeof import('pinia')['mapWritableState']
   const markRaw: typeof import('vue')['markRaw']
+  const mergeDeep: typeof import('../utils/common')['mergeDeep']
   const middleware: typeof import('../utils/router/middleware')['middleware']
   const nextTick: typeof import('vue')['nextTick']
   const notivue: typeof import('../utils/notifications')['notivue']
@@ -109,7 +114,7 @@ declare global {
   const provide: typeof import('vue')['provide']
   const provideLocal: typeof import('@vueuse/core')['provideLocal']
   const push: typeof import('notivue')['push']
-  const pushNotification: typeof import('notivue')['push']
+  const pushNotification: typeof import('../utils/notifications')['pushNotification']
   const reactify: typeof import('@vueuse/core')['reactify']
   const reactifyObject: typeof import('@vueuse/core')['reactifyObject']
   const reactive: typeof import('vue')['reactive']
@@ -123,7 +128,7 @@ declare global {
   const refDefault: typeof import('@vueuse/core')['refDefault']
   const refThrottled: typeof import('@vueuse/core')['refThrottled']
   const refWithControl: typeof import('@vueuse/core')['refWithControl']
-  const resetPassword: typeof import('../utils/auth')['resetPassword']
+  const resetPassword: typeof import('../lib/auth')['resetPassword']
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
@@ -133,9 +138,10 @@ declare global {
   const shallowReactive: typeof import('vue')['shallowReactive']
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
-  const signInWithEmail: typeof import('../utils/auth')['signInWithEmail']
-  const signInWithGoogle: typeof import('../utils/auth')['signInWithGoogle']
-  const signOut: typeof import('../utils/auth')['signOut']
+  const signInWithAuth0: typeof import('../lib/auth')['signInWithAuth0']
+  const signInWithEmail: typeof import('../lib/auth')['signInWithEmail']
+  const signInWithGoogle: typeof import('../lib/auth')['signInWithGoogle']
+  const signOut: typeof import('../lib/auth')['signOut']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const stripe: typeof import('../utils/payment/stripe')['stripe']
   const supabase: typeof import('../utils/supabase/supabase')['supabase']
@@ -180,6 +186,7 @@ declare global {
   const useAsyncState: typeof import('@vueuse/core')['useAsyncState']
   const useAttrs: typeof import('vue')['useAttrs']
   const useAuth: typeof import('../composables/useAuth')['useAuth']
+  const useAuthStore: typeof import('../stores/auth.store')['useAuthStore']
   const useBase64: typeof import('@vueuse/core')['useBase64']
   const useBattery: typeof import('@vueuse/core')['useBattery']
   const useBluetooth: typeof import('@vueuse/core')['useBluetooth']
@@ -204,6 +211,7 @@ declare global {
   const useCurrentElement: typeof import('@vueuse/core')['useCurrentElement']
   const useCycleList: typeof import('@vueuse/core')['useCycleList']
   const useDark: typeof import('@vueuse/core')['useDark']
+  const useDataStore: typeof import('../stores/data.store')['useDataStore']
   const useDateFormat: typeof import('@vueuse/core')['useDateFormat']
   const useDebounce: typeof import('@vueuse/core')['useDebounce']
   const useDebounceFn: typeof import('@vueuse/core')['useDebounceFn']
@@ -343,6 +351,7 @@ declare global {
   const useWindowFocus: typeof import('@vueuse/core')['useWindowFocus']
   const useWindowScroll: typeof import('@vueuse/core')['useWindowScroll']
   const useWindowSize: typeof import('@vueuse/core')['useWindowSize']
+  const useWindowStore: typeof import('../stores/window.store')['useWindowStore']
   const watch: typeof import('vue')['watch']
   const watchArray: typeof import('@vueuse/core')['watchArray']
   const watchAtMost: typeof import('@vueuse/core')['watchAtMost']
@@ -372,6 +381,7 @@ import { UnwrapRef } from 'vue'
 declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
+    readonly Config: UnwrapRef<typeof import('../utils/config')['Config']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly Notification: UnwrapRef<typeof import('notivue')['Notification']>
     readonly Notivue: UnwrapRef<typeof import('notivue')['Notivue']>
@@ -408,6 +418,7 @@ declare module 'vue' {
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
+    readonly env: UnwrapRef<typeof import('../utils/config')['env']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
@@ -418,6 +429,7 @@ declare module 'vue' {
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
+    readonly isObject: UnwrapRef<typeof import('../utils/common')['isObject']>
     readonly isProxy: UnwrapRef<typeof import('vue')['isProxy']>
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
@@ -430,6 +442,7 @@ declare module 'vue' {
     readonly mapStores: UnwrapRef<typeof import('pinia')['mapStores']>
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
+    readonly mergeDeep: UnwrapRef<typeof import('../utils/common')['mergeDeep']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly notivue: UnwrapRef<typeof import('../utils/notifications')['notivue']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
@@ -457,7 +470,7 @@ declare module 'vue' {
     readonly pinia: UnwrapRef<typeof import('../utils/pinia')['pinia']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
-    readonly pushNotification: UnwrapRef<typeof import('notivue')['push']>
+    readonly pushNotification: UnwrapRef<typeof import('../utils/notifications')['pushNotification']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>
     readonly reactifyObject: UnwrapRef<typeof import('@vueuse/core')['reactifyObject']>
     readonly reactive: UnwrapRef<typeof import('vue')['reactive']>
@@ -517,6 +530,7 @@ declare module 'vue' {
     readonly useAsyncQueue: UnwrapRef<typeof import('@vueuse/core')['useAsyncQueue']>
     readonly useAsyncState: UnwrapRef<typeof import('@vueuse/core')['useAsyncState']>
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
+    readonly useAuthStore: UnwrapRef<typeof import('../stores/auth.store')['useAuthStore']>
     readonly useBase64: UnwrapRef<typeof import('@vueuse/core')['useBase64']>
     readonly useBattery: UnwrapRef<typeof import('@vueuse/core')['useBattery']>
     readonly useBluetooth: UnwrapRef<typeof import('@vueuse/core')['useBluetooth']>
@@ -675,6 +689,7 @@ declare module 'vue' {
     readonly useWindowFocus: UnwrapRef<typeof import('@vueuse/core')['useWindowFocus']>
     readonly useWindowScroll: UnwrapRef<typeof import('@vueuse/core')['useWindowScroll']>
     readonly useWindowSize: UnwrapRef<typeof import('@vueuse/core')['useWindowSize']>
+    readonly useWindowStore: UnwrapRef<typeof import('../stores/window.store')['useWindowStore']>
     readonly watch: UnwrapRef<typeof import('vue')['watch']>
     readonly watchArray: UnwrapRef<typeof import('@vueuse/core')['watchArray']>
     readonly watchAtMost: UnwrapRef<typeof import('@vueuse/core')['watchAtMost']>

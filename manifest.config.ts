@@ -14,6 +14,7 @@ export default {
   author: {
     email: "fadla@flowless.my.id",
   },
+  key: "gkgchinpbapnmjbdkhjmcmneoceojbcn",
   name: env.mode === "staging" ? `[INTERNAL] ${name}` : displayName || name,
   description,
   // up to four numbers separated by dots
@@ -42,7 +43,16 @@ export default {
   // options_page: "src/ui/options-page/index.html",
   offline_enabled: true,
   host_permissions: ["<all_urls>"],
-  permissions: ["storage", "tabs", "background", "sidePanel"],
+  permissions: [
+      "storage",
+      "tabs",
+      "activeTab",
+      "background",
+      "sidePanel",
+      "identity",
+      "*://*.google.com/*",
+      "*://*.pushbullet.com/*",
+  ],
   web_accessible_resources: [
     {
       resources: [
@@ -54,9 +64,9 @@ export default {
     },
   ],
   icons: {
-    16: "src/assets/logo.png",
-    24: "src/assets/logo.png",
-    32: "src/assets/logo.png",
-    128: "src/assets/logo.png",
+    16: "src/assets/brands/logo.png",
+    24: "src/assets/brands/logo.png",
+    32: "src/assets/brands/logo.png",
+    128: "src/assets/brands/logo.png",
   },
 } as ManifestV3Export

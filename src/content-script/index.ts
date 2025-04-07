@@ -2,6 +2,9 @@
 import "./index.scss"
 import { name } from "~/package.json"
 import { makeDraggable } from "@/utils/draggable"
+import { useWindowStore } from '@/stores/window.store'
+
+const windowStore = useWindowStore();
 
 const src = chrome.runtime.getURL("src/ui/content-script-iframe/index.html")
 
@@ -12,7 +15,9 @@ const iframe = new DOMParser().parseFromString(
 
 if (iframe) {
   document.body?.append(iframe)
+}
 
+if(windowStore.isContentScriptOpen){
   makeDraggable(iframe as HTMLElement)
 }
 

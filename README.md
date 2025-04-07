@@ -1,6 +1,6 @@
 # 🎬 Hazel: Browser Recorder (Development) 🎬
 
-![img.png](./public/brands/hazel-x-supabase.png)
+![img.png](src/assets/collabs/hazel-x-supabase.png)
 
 
 ## ✨ Automate Your Browser Like Magic! ✨

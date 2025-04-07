@@ -366,6 +366,15 @@
     "applyTheme": true,
     "createRef": true,
     "makeDraggable": true,
-    "useRecordsStore": true
+    "useRecordsStore": true,
+    "login": true,
+    "signInWithAuth0": true,
+    "Config": true,
+    "env": true,
+    "useAuthStore": true,
+    "useWindowStore": true,
+    "useDataStore": true,
+    "isObject": true,
+    "mergeDeep": true
   }
 }

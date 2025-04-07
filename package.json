@@ -1,18 +1,23 @@
 {
+  "displayName": "Hazel: The Cloud-based browserless recorder",
+  "name": "hazel-browser-recorder",
+  "description": "Hazel: The Cloud-based browserless recorder",
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
     "date-fns": "^4.1.0",
     "lucide-vue-next": "^0.487.0",
     "marked": "^15.0.7",
     "notivue": "^2.4.5",
     "pinia": "^3.0.1",
+    "randomstring": "^1.3.1",
     "reka-ui": "^2.2.0",
     "tailwind-merge": "^3.1.0",
+    "vite-svg-loader": "^5.1.0",
     "vue": "^3.5.13",
     "vue-i18n": "^11.1.2",
     "vue-router": "^4.5.0",
     "webextension-polyfill": "^0.12.0"
   },
-  "description": "A Vue 3 + Vite project for building Chrome extensions",
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.0-beta.32",
     "@eslint/compat": "^1.2.7",
@@ -70,8 +75,6 @@
     "web-ext": "^8.4.0",
     "webext-bridge": "^6.0.1"
   },
-  "displayName": "Vite Vue 3 Chrome Extension",
-  "name": "vite-vue3-browser-extension-v3",
   "overrides": {
     "@crxjs/vite-plugin": "$@crxjs/vite-plugin"
   },

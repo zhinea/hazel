@@ -12,6 +12,7 @@ import TurboConsole from "unplugin-turbo-console/vite"
 import VueI18nPlugin from "@intlify/unplugin-vue-i18n/vite"
 import tailwindcss from "@tailwindcss/vite"
 import "dotenv/config"
+import viteSvgLoader from "vite-svg-loader"
 
 // @ts-expect-error commonjs module
 import { defineViteConfig as define } from "./define.config.mjs"
@@ -77,6 +78,8 @@ export default defineConfig({
     },
 
     vueDevTools(),
+
+      viteSvgLoader(),
 
     VueI18nPlugin({
       include: "src/locales/**",

@@ -8,7 +8,7 @@
         class="flex gap-2 items-center"
       >
         <img
-          src="@assets/logo.png"
+          src="@assets/brands/logo.png"
           alt="logo"
           class="h-8 w-auto"
         />

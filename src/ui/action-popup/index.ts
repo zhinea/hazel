@@ -10,16 +10,20 @@ appRouter.addRoute({
   path: "/",
   redirect: "/action-popup",
 })
-
+//
 // router.beforeEach((to, from, next) => {
 //   if (to.path === '/') {
 //     return next('/action-popup')
 //   }
-
+//
 //   next()
 // })
 
-const app = createApp(App).use(i18n).use(notivue).use(pinia).use(appRouter)
+const app = createApp(App)
+    .use(i18n)
+    .use(notivue)
+    .use(pinia)
+    .use(appRouter)
 
 app.mount("#app")
 

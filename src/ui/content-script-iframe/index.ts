@@ -24,3 +24,8 @@ self.onerror = function (message, source, lineno, colno, error) {
   console.info("Column: " + colno)
   console.info("Error object: " + error)
 }
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.info("Message received from background script: ", message)
+
+})
