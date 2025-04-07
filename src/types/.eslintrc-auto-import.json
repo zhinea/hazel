@@ -375,6 +375,10 @@
     "useWindowStore": true,
     "useDataStore": true,
     "isObject": true,
-    "mergeDeep": true
+    "mergeDeep": true,
+    "CustomVariable": true,
+    "VariableType": true,
+    "useConfigStore": true,
+    "notify": true
   }
 }

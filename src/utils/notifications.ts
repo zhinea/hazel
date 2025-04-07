@@ -7,7 +7,7 @@ export const notivue = createNotivue({
   position: "bottom-center",
 })
 
-export const pushNotification = (payload: {
+export const notify = (payload: {
   title: string
   message: string
   type: "success" | "error" | "warning"

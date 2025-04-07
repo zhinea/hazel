@@ -84,6 +84,7 @@ declare global {
   const mergeDeep: typeof import('../utils/common')['mergeDeep']
   const middleware: typeof import('../utils/router/middleware')['middleware']
   const nextTick: typeof import('vue')['nextTick']
+  const notify: typeof import('../utils/notifications')['notify']
   const notivue: typeof import('../utils/notifications')['notivue']
   const onActivated: typeof import('vue')['onActivated']
   const onBeforeMount: typeof import('vue')['onBeforeMount']
@@ -114,7 +115,7 @@ declare global {
   const provide: typeof import('vue')['provide']
   const provideLocal: typeof import('@vueuse/core')['provideLocal']
   const push: typeof import('notivue')['push']
-  const pushNotification: typeof import('../utils/notifications')['pushNotification']
+  const pushNotification: typeof import('notivue')['push']
   const reactify: typeof import('@vueuse/core')['reactify']
   const reactifyObject: typeof import('@vueuse/core')['reactifyObject']
   const reactive: typeof import('vue')['reactive']
@@ -202,6 +203,7 @@ declare global {
   const useClipboardItems: typeof import('@vueuse/core')['useClipboardItems']
   const useCloned: typeof import('@vueuse/core')['useCloned']
   const useColorMode: typeof import('@vueuse/core')['useColorMode']
+  const useConfigStore: typeof import('../stores/config.store')['useConfigStore']
   const useConfirmDialog: typeof import('@vueuse/core')['useConfirmDialog']
   const useCountdown: typeof import('@vueuse/core')['useCountdown']
   const useCounter: typeof import('@vueuse/core')['useCounter']
@@ -374,6 +376,9 @@ declare global {
   // @ts-ignore
   export type { Component, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
+  // @ts-ignore
+  export type { VariableType, CustomVariable } from '../stores/config.store'
+  import('../stores/config.store')
 }
 
 // for vue template auto import
@@ -444,6 +449,7 @@ declare module 'vue' {
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly mergeDeep: UnwrapRef<typeof import('../utils/common')['mergeDeep']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
+    readonly notify: UnwrapRef<typeof import('../utils/notifications')['notify']>
     readonly notivue: UnwrapRef<typeof import('../utils/notifications')['notivue']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>
@@ -470,7 +476,7 @@ declare module 'vue' {
     readonly pinia: UnwrapRef<typeof import('../utils/pinia')['pinia']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
-    readonly pushNotification: UnwrapRef<typeof import('../utils/notifications')['pushNotification']>
+    readonly pushNotification: UnwrapRef<typeof import('notivue')['push']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>
     readonly reactifyObject: UnwrapRef<typeof import('@vueuse/core')['reactifyObject']>
     readonly reactive: UnwrapRef<typeof import('vue')['reactive']>
@@ -544,6 +550,7 @@ declare module 'vue' {
     readonly useClipboardItems: UnwrapRef<typeof import('@vueuse/core')['useClipboardItems']>
     readonly useCloned: UnwrapRef<typeof import('@vueuse/core')['useCloned']>
     readonly useColorMode: UnwrapRef<typeof import('@vueuse/core')['useColorMode']>
+    readonly useConfigStore: UnwrapRef<typeof import('../stores/config.store')['useConfigStore']>
     readonly useConfirmDialog: UnwrapRef<typeof import('@vueuse/core')['useConfirmDialog']>
     readonly useCountdown: UnwrapRef<typeof import('@vueuse/core')['useCountdown']>
     readonly useCounter: UnwrapRef<typeof import('@vueuse/core')['useCounter']>

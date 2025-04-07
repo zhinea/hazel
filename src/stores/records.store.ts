@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import type { Record } from '@/types/record'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth.store'
-import {pushNotification} from "@/utils/notifications";
+import {notify} from "@/utils/notifications";
 
 export const useRecordsStore = defineStore('records', () => {
   const records = ref<Record[]>([])
@@ -15,7 +15,7 @@ export const useRecordsStore = defineStore('records', () => {
     isLoading.value = true
     try {
       if (!authStore.isAuthenticated) {
-        pushNotification({
+        notify({
           title: 'Authentication Required',
           message: 'Please log in to access your records',
           type: 'warning'
@@ -38,7 +38,7 @@ export const useRecordsStore = defineStore('records', () => {
       }
     } catch (error) {
       console.error('Error fetching records:', error)
-      pushNotification({
+      notify({
         title: 'Error',
         message: 'Failed to fetch records',
         type: 'error'
@@ -87,7 +87,7 @@ export const useRecordsStore = defineStore('records', () => {
       
       if (data && data[0]) {
         records.value.unshift(data[0])
-        pushNotification({
+        notify({
           title: 'Success',
           message: 'Record added successfully',
           type: 'success'
@@ -95,7 +95,7 @@ export const useRecordsStore = defineStore('records', () => {
       }
     } catch (error) {
       console.error('Error adding record:', error)
-      pushNotification({
+      notify({
         title: 'Error',
         message: 'Failed to add record',
         type: 'error'
@@ -119,14 +119,14 @@ export const useRecordsStore = defineStore('records', () => {
       if (error) throw error
       
       records.value = records.value.filter(r => r.id !== id)
-      pushNotification({
+      notify({
         title: 'Success',
         message: 'Record deleted successfully',
         type: 'success'
       })
     } catch (error) {
       console.error('Error deleting record:', error)
-      pushNotification({
+      notify({
         title: 'Error',
         message: 'Failed to delete record',
         type: 'error'

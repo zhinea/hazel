@@ -49,9 +49,7 @@ export default {
       "activeTab",
       "background",
       "sidePanel",
-      "identity",
-      "*://*.google.com/*",
-      "*://*.pushbullet.com/*",
+      "identity"
   ],
   web_accessible_resources: [
     {
