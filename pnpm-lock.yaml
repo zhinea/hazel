@@ -1,9 +1,5 @@
 lockfileVersion: '6.0'
 
-settings:
-  autoInstallPeers: true
-  excludeLinksFromLockfile: false
-
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
@@ -6838,3 +6834,7 @@ packages:
       async: 3.2.6
       jszip: 3.10.1
     dev: true
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false

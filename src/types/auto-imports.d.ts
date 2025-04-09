@@ -8,10 +8,12 @@ export {}
 declare global {
   const $t: typeof import('vue-i18n')['$t']
   const Config: typeof import('../utils/config')['Config']
+  const CustomVariableTypes: typeof import('../stores/record-config.store')['CustomVariableTypes']
   const EffectScope: typeof import('vue')['EffectScope']
   const Gumroad: typeof import('../utils/payment/gumroad')['Gumroad']
   const Notification: typeof import('notivue')['Notification']
   const Notivue: typeof import('notivue')['Notivue']
+  const Types: typeof import('../stores/config.store.ts~')['Types']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
   const addCheckoutSession: typeof import('../utils/firebase')['addCheckoutSession']
   const appRouter: typeof import('../utils/router/index')['appRouter']
@@ -203,7 +205,7 @@ declare global {
   const useClipboardItems: typeof import('@vueuse/core')['useClipboardItems']
   const useCloned: typeof import('@vueuse/core')['useCloned']
   const useColorMode: typeof import('@vueuse/core')['useColorMode']
-  const useConfigStore: typeof import('../stores/config.store')['useConfigStore']
+  const useConfigStore: typeof import('../stores/record-config.store')['useConfigStore']
   const useConfirmDialog: typeof import('@vueuse/core')['useConfirmDialog']
   const useCountdown: typeof import('@vueuse/core')['useCountdown']
   const useCounter: typeof import('@vueuse/core')['useCounter']
@@ -294,6 +296,7 @@ declare global {
   const usePreferredReducedTransparency: typeof import('@vueuse/core')['usePreferredReducedTransparency']
   const usePrevious: typeof import('@vueuse/core')['usePrevious']
   const useRafFn: typeof import('@vueuse/core')['useRafFn']
+  const useRecordConfigStore: typeof import('../stores/record-config.store')['useRecordConfigStore']
   const useRecordsStore: typeof import('../stores/records.store')['useRecordsStore']
   const useRefHistory: typeof import('@vueuse/core')['useRefHistory']
   const useResizeObserver: typeof import('@vueuse/core')['useResizeObserver']
@@ -314,6 +317,7 @@ declare global {
   const useStepper: typeof import('@vueuse/core')['useStepper']
   const useStorage: typeof import('@vueuse/core')['useStorage']
   const useStorageAsync: typeof import('@vueuse/core')['useStorageAsync']
+  const useStorageRoute: typeof import('../composables/useStorageRoute')['useStorageRoute']
   const useStripe: typeof import('../utils/payment/stripe')['useStripe']
   const useStripeCheckout: typeof import('../utils/payment/stripe')['useStripeCheckout']
   const useStyleTag: typeof import('@vueuse/core')['useStyleTag']
@@ -376,9 +380,6 @@ declare global {
   // @ts-ignore
   export type { Component, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
-  // @ts-ignore
-  export type { VariableType, CustomVariable } from '../stores/config.store'
-  import('../stores/config.store')
 }
 
 // for vue template auto import
@@ -550,7 +551,6 @@ declare module 'vue' {
     readonly useClipboardItems: UnwrapRef<typeof import('@vueuse/core')['useClipboardItems']>
     readonly useCloned: UnwrapRef<typeof import('@vueuse/core')['useCloned']>
     readonly useColorMode: UnwrapRef<typeof import('@vueuse/core')['useColorMode']>
-    readonly useConfigStore: UnwrapRef<typeof import('../stores/config.store')['useConfigStore']>
     readonly useConfirmDialog: UnwrapRef<typeof import('@vueuse/core')['useConfirmDialog']>
     readonly useCountdown: UnwrapRef<typeof import('@vueuse/core')['useCountdown']>
     readonly useCounter: UnwrapRef<typeof import('@vueuse/core')['useCounter']>
@@ -639,6 +639,7 @@ declare module 'vue' {
     readonly usePreferredReducedTransparency: UnwrapRef<typeof import('@vueuse/core')['usePreferredReducedTransparency']>
     readonly usePrevious: UnwrapRef<typeof import('@vueuse/core')['usePrevious']>
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
+    readonly useRecordConfigStore: UnwrapRef<typeof import('../stores/record-config.store')['useRecordConfigStore']>
     readonly useRecordsStore: UnwrapRef<typeof import('../stores/records.store')['useRecordsStore']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
@@ -659,6 +660,7 @@ declare module 'vue' {
     readonly useStepper: UnwrapRef<typeof import('@vueuse/core')['useStepper']>
     readonly useStorage: UnwrapRef<typeof import('@vueuse/core')['useStorage']>
     readonly useStorageAsync: UnwrapRef<typeof import('@vueuse/core')['useStorageAsync']>
+    readonly useStorageRoute: UnwrapRef<typeof import('../composables/useStorageRoute')['useStorageRoute']>
     readonly useStyleTag: UnwrapRef<typeof import('@vueuse/core')['useStyleTag']>
     readonly useSupported: UnwrapRef<typeof import('@vueuse/core')['useSupported']>
     readonly useSwipe: UnwrapRef<typeof import('@vueuse/core')['useSwipe']>

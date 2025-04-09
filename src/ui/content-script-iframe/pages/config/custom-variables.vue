@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { useConfigStore, type VariableType } from '@/stores/config.store'
+import { useConfigStore, type VariableType } from '@/stores/record-config.store'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
 import { v4 as uuidv4 } from 'uuid'
 
-const configStore = useConfigStore()
+const configStore = useRecordConfigStore()
 const router = useRouter()
 
 const variableName = ref('')

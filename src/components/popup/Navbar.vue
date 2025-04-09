@@ -45,24 +45,12 @@ import { Button } from "@/components/ui/button"
 import {BasicResponseServer, IncommingMessage} from "@/types/message";
 
 const router = useRouter()
+const { go } = useStorageRoute('content-script');
+const windowStore = useWindowStore();
 
 function onRecord() {
-  chrome.runtime.sendMessage(<IncommingMessage>{
-    action: 'popup::initializeStartRecord'
-  }, (response: BasicResponseServer<void>) => {
-    if(!response?.status){
-      pushNotification({
-          title: "Error",
-          message: response.message || 'Something went wrong!',
-          type: "error"
-      })
-      return true;
-    }
-
-    window.close()
-    return true;
-  })
-
+  windowStore.openContentScript();
+  go('config')
 }
 
 function goHome() {

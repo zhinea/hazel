@@ -379,6 +379,11 @@
     "CustomVariable": true,
     "VariableType": true,
     "useConfigStore": true,
-    "notify": true
+    "notify": true,
+    "useStorageRoute": true,
+    "Types": true,
+    "CustomVariableType": true,
+    "CustomVariableTypes": true,
+    "useRecordConfigStore": true
   }
 }
