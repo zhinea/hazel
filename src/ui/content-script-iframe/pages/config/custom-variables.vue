@@ -1,136 +1,275 @@
+<!-- VariableEditorPage.vue -->
+<template>
+  <div class="flex flex-col min-h-screen bg-[#121212] text-white dark">
+    <!-- Header -->
+    <header class="sticky top-0 z-10 bg-[#121212] border-b border-gray-800 px-4 py-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <Button
+              variant="ghost"
+              size="icon"
+              @click="() => router.go('config')"
+              class="mr-2 text-gray-300 hover:text-white hover:bg-gray-800"
+          >
+            <ArrowLeft class="h-5 w-5" />
+          </Button>
+          <h1 class="font-bold text-base">New Variable</h1>
+        </div>
+        <Button
+            variant="default"
+            size="sm"
+            :disabled="isAllowedToSave"
+            @click="handleSave"
+        >
+          <Check class="h-4 w-4" />
+          Save
+        </Button>
+      </div>
+    </header>
+
+    <!-- Main -->
+    <main class="flex-1 px-4 py-4 dark">
+      <div class="space-y-6">
+        <!-- Variable Name -->
+        <div class="space-y-2">
+          <Label for="variable-name" class="text-gray-300">Variable Name</Label>
+          <Input
+              id="variable-name"
+              v-model="variableName"
+              placeholder="e.g., username, searchTerm"
+              class="bg-[#1e1e1e] border-gray-700 text-white focus:ring-purple-500"
+          />
+        </div>
+
+        <!-- Variable Type -->
+        <div class="space-y-2">
+          <Label for="variable-type" class="text-gray-300">Variable Type</Label>
+          <Select v-model="variableType" fullWidth>
+            <SelectTrigger class="bg-[#1e1e1e] border-gray-700 text-white focus:ring-purple-500">
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent class="bg-[#1e1e1e] border-gray-700 text-white">
+              <SelectItem value="static">Static</SelectItem>
+              <SelectItem value="ai">AI Generated</SelectItem>
+              <SelectItem value="api">API Response</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <!-- Static value -->
+        <div v-if="variableType==='static'" class="space-y-2">
+          <Label for="static-value" class="text-gray-300">Value</Label>
+          <Input
+              id="static-value"
+              v-model="staticValue"
+              placeholder="Static value"
+              class="bg-[#1e1e1e] border-gray-700 text-white focus:ring-purple-500"
+          />
+        </div>
+
+        <!-- AI prompt -->
+        <div v-if="variableType==='ai'" class="space-y-2">
+          <div class="flex items-center justify-between">
+            <Label for="ai-prompt" class="text-gray-300">AI Prompt</Label>
+            <span :class="aiPrompt.length>200 ? 'text-red-500 text-xs' : 'text-gray-400 text-xs'">
+              {{ aiPrompt.length }}/200
+            </span>
+          </div>
+          <Textarea
+              id="ai-prompt"
+              v-model="aiPrompt"
+              placeholder="Enter prompt for AI generation"
+              maxLength="200"
+              class="bg-[#1e1e1e] border-gray-700 text-white focus:ring-purple-500 min-h-[100px]"
+          />
+        </div>
+
+        <!-- API config -->
+        <div v-if="variableType==='api'" class="space-y-4">
+          <!-- URL + Test -->
+          <div class="space-y-2">
+            <Label for="api-url" class="text-gray-300">API URL</Label>
+            <div class="flex space-x-2">
+              <Input
+                  id="api-url"
+                  v-model="apiUrl"
+                  placeholder="https://api.example.com/data"
+                  class="bg-[#1e1e1e] border-gray-700 text-white focus:ring-purple-500 flex-1"
+              />
+              <Button
+                  variant="outline"
+                  @click="handleTestRequest"
+                  :disabled="!apiUrl"
+              >
+                <Play class="h-4 w-4" />
+                Test
+              </Button>
+            </div>
+          </div>
+
+          <!-- Response -->
+          <div v-if="apiResponse">
+            <Label class="text-gray-300">Response</Label>
+            <pre class="bg-[#1e1e1e] border border-gray-700 rounded-md p-3 text-xs text-gray-300 overflow-auto max-h-[200px]">
+              {{ apiResponse }}
+            </pre>
+          </div>
+
+          <!-- JSON Path + Verify -->
+          <div v-if="apiResponse" class="space-y-2">
+            <Label for="json-path" class="text-gray-300">JSON Path</Label>
+            <div class="flex space-x-2">
+              <Input
+                  id="json-path"
+                  v-model="jsonPath"
+                  placeholder="data.profile.user.name"
+                  class="bg-[#1e1e1e] border-gray-700 text-white focus:ring-purple-500 flex-1"
+              />
+              <Button
+                  variant="outline"
+                  @click="handleVerifyPath"
+                  :disabled="!jsonPath"
+                  class="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white disabled:bg-gray-900"
+              >
+                Verify
+              </Button>
+            </div>
+            <p v-if="pathVerified!==null"
+               :class="pathVerified ? 'text-green-500 text-xs mt-1' : 'text-red-500 text-xs mt-1'">
+              {{ pathVerified
+                ? 'Path verified successfully!'
+                : 'Invalid path. Please check and try again.' }}
+            </p>
+          </div>
+
+          <!-- Extracted Value -->
+          <div v-if="extractedValue" class="space-y-2">
+            <Label class="text-gray-300">Extracted Value</Label>
+            <div class="bg-[#1e1e1e] border border-gray-700 rounded-md p-3 text-sm text-gray-300">
+              {{ extractedValue }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</template>
+
 <script setup lang="ts">
-import { useConfigStore, type VariableType } from '@/stores/record-config.store'
-import { useRouter } from 'vue-router'
 import { ref } from 'vue'
-import { v4 as uuidv4 } from 'uuid'
+import { ArrowLeft, Check, Play } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from '@/components/ui/select'
+import { notify } from '@/utils/notifications';
+import { v4 as uuidv4  } from 'uuid';
+import {CustomVariable} from "@/types/record";
 
-const configStore = useRecordConfigStore()
-const router = useRouter()
+type VariableType = 'static' | 'ai' | 'api'
 
+const router = useStorageRoute('content-script')
+const recordConfig = useRecordConfigStore();
+
+// State
 const variableName = ref('')
 const variableType = ref<VariableType>('static')
 const staticValue = ref('')
-const apiEndpoint = ref('')
-const apiHeaders = ref('')
+const aiPrompt = ref('')
+const apiUrl = ref('')
+const apiResponse = ref<string | null>(null)
+const jsonPath = ref('')
+const pathVerified = ref<boolean | null>(null)
+const extractedValue = ref<string | null>(null)
 
-function addVariable() {
-  configStore.addVariable({
-    id: uuidv4(),
-    name: variableName.value,
-    type: variableType.value,
-    value: variableType.value === 'static' ? staticValue.value : '',
-    apiEndpoint: variableType.value === 'api' ? apiEndpoint.value : undefined,
-    apiHeaders: variableType.value === 'api' ? parseHeaders(apiHeaders.value) : undefined
-  })
-  
-  router.push('/content-script-iframe/config')
-}
+const isAllowedToSave = computed(() => !variableName.value || (variableType.value === 'api' && pathVerified.value !== true) || (variableType.value ==='ai' && aiPrompt.value.length>200) || (variableType.value === 'static' && !staticValue.value));
 
-function parseHeaders(headersStr: string): Record<string, string> {
+// Handlers
+async function handleTestRequest() {
   try {
-    return headersStr.split('\n')
-      .filter(line => line.trim() !== '')
-      .reduce((acc, line) => {
-        const [key, value] = line.split(':').map(part => part.trim())
-        if (key && value) {
-          acc[key] = value
-        }
-        return acc
-      }, {} as Record<string, string>)
-  } catch (e) {
-    return {}
+    const res = await fetch(apiUrl.value)
+    const data = await res.json()
+    apiResponse.value = JSON.stringify(data, null, 2)
+    pathVerified.value = null
+    extractedValue.value = null
+  } catch {
+    apiResponse.value = JSON.stringify({ error: 'Failed to fetch data' }, null, 2)
   }
 }
 
-function goBack() {
-  router.push('/content-script-iframe/config')
+function handleVerifyPath() {
+  if (!apiResponse.value) return
+  try {
+    const data = JSON.parse(apiResponse.value)
+    const val = jsonPath.value.split('.').reduce((acc: any, key) =>
+        acc && acc[key] !== undefined ? acc[key] : undefined, data)
+    if (val !== undefined) {
+      pathVerified.value = true
+      extractedValue.value = typeof val === 'object' ? JSON.stringify(val) : String(val)
+    } else {
+      pathVerified.value = false
+      extractedValue.value = null
+    }
+  } catch {
+    pathVerified.value = false
+    extractedValue.value = null
+  }
+}
+
+function handleSave() {
+  if(recordConfig.variables.find(v => v.name === variableName.value)){
+    notify({
+      title: 'Variable Exists',
+      message: 'A variable with the same name already exists.',
+      type: 'error',
+      duration: 2000
+    })
+    return
+  }
+
+  console.log('Saving variable:', {
+    name: variableName.value,
+    type: variableType.value,
+    ...(variableType.value === 'static' && { value: staticValue.value }),
+    ...(variableType.value === 'ai'     && { prompt: aiPrompt.value }),
+    ...(variableType.value === 'api'    && {
+      apiUrl: apiUrl.value,
+      jsonPath: jsonPath.value,
+      verified: pathVerified.value,
+    }),
+  })
+
+  recordConfig.addVariable({
+    id: uuidv4(),
+    name: variableName.value,
+    type: variableType.value,
+    meta: {
+      ...(variableType.value === 'static' && { value: staticValue.value }),
+      ...(variableType.value === 'ai'     && { prompt: aiPrompt.value }),
+      ...(variableType.value === 'api'    && {
+        api: {
+          url: apiUrl.value,
+          extractPath: jsonPath.value,
+          verified: pathVerified.value,
+        }
+      }),
+    }
+  } as CustomVariable)
+
+  notify({
+    title: 'Variable Saved',
+    message: 'Your variable has been saved successfully.',
+    type: 'success',
+    duration: 1500
+  })
+
+  router.go('config')
 }
 </script>
-
-<template>
-  <div class="p-4">
-    <div class="flex items-center mb-4">
-      <button @click="goBack" class="btn btn-sm btn-ghost mr-2">
-        &larr;
-      </button>
-      <h2 class="text-xl font-bold">Add Custom Variable</h2>
-    </div>
-    
-    <div class="form-control mb-4">
-      <label class="label">
-        <span class="label-text">Variable Name</span>
-      </label>
-      <input 
-        v-model="variableName" 
-        type="text" 
-        placeholder="Enter variable name" 
-        class="input input-bordered w-full"
-      />
-    </div>
-    
-    <div class="form-control mb-4">
-      <label class="label">
-        <span class="label-text">Variable Type</span>
-      </label>
-      <select v-model="variableType" class="select select-bordered w-full">
-        <option value="static">Static Value</option>
-        <option value="ai">AI Generated</option>
-        <option value="api">API Response</option>
-      </select>
-    </div>
-    
-    <div v-if="variableType === 'static'" class="form-control mb-4">
-      <label class="label">
-        <span class="label-text">Static Value</span>
-      </label>
-      <input 
-        v-model="staticValue" 
-        type="text" 
-        placeholder="Enter static value" 
-        class="input input-bordered w-full"
-      />
-    </div>
-    
-    <div v-if="variableType === 'api'" class="space-y-4">
-      <div class="form-control">
-        <label class="label">
-          <span class="label-text">API Endpoint</span>
-        </label>
-        <input 
-          v-model="apiEndpoint" 
-          type="text" 
-          placeholder="https://api.example.com/data" 
-          class="input input-bordered w-full"
-        />
-      </div>
-      
-      <div class="form-control">
-        <label class="label">
-          <span class="label-text">Headers (one per line, format: Key: Value)</span>
-        </label>
-        <textarea 
-          v-model="apiHeaders" 
-          placeholder="Content-Type: application/json
-Authorization: Bearer token" 
-          class="textarea textarea-bordered h-24"
-        ></textarea>
-      </div>
-    </div>
-    
-    <div v-if="variableType === 'ai'" class="alert alert-info mb-4">
-      <div>
-        <span>AI-generated values will be created during playback.</span>
-      </div>
-    </div>
-    
-    <div class="flex justify-end">
-      <button 
-        @click="addVariable" 
-        class="btn btn-primary"
-        :disabled="!variableName || (variableType === 'static' && !staticValue) || (variableType === 'api' && !apiEndpoint)"
-      >
-        Add Variable
-      </button>
-    </div>
-  </div>
-</template>

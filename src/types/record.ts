@@ -19,8 +19,11 @@ export interface CustomVariable<T extends CustomVariableType = CustomVariableTyp
     name: string
     type: CustomVariableType
     meta?: {
-        endpoint?: string;
-        extractPath?: string;
+        api?: {
+            url?: string;
+            extractPath?: string;
+            verified?: boolean | null ;
+        };
         prompt?: string;
         value?: string;
     }

@@ -1,6 +1,22 @@
 <!-- ConfigPage.vue -->
 <template>
-  <div class="flex flex-col min-h-screen bg-[#121212] text-white">
+  <div class="flex flex-col min-h-screen bg-[#121212] text-white dark">
+    <!-- Header -->
+    <header class="sticky top-0 z-10 bg-[#121212] border-b border-gray-800 px-4 py-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <h1 class="font-bold text-base">New Record</h1>
+        </div>
+        <Button
+            size="sm"
+            class="dark"
+        >
+          <Video class="h-4 w-4" />
+          Start record
+        </Button>
+      </div>
+    </header>
+
     <!-- Main form -->
     <main class="flex-1 px-4 py-4 mt-2">
       <div class="space-y-6">
@@ -28,7 +44,6 @@
                 </div>
                 <Switch
                     v-model:checked="config.options[option.id]"
-                    class="data-[state=checked]:bg-purple-600"
                 />
               </div>
             </div>
@@ -44,7 +59,6 @@
               </div>
               <Switch
                   v-model:checked="config.options[option.id]"
-                  class="data-[state=checked]:bg-purple-600"
               />
             </div>
           </template>
@@ -65,12 +79,6 @@
           </div>
           <CustomVariablesList :variables="config.variables" />
 
-          <div class="flex justify-end">
-            <Button color="primary" size="sm" class="dark">
-              <Video class="h-4 w-4 mr-2" />
-              Start Record
-            </Button>
-          </div>
 
         </div>
       </div>
@@ -85,7 +93,7 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import CustomVariablesList from '@/components/contentScript/CustomVariableList.vue'
-import { Video } from 'lucide-vue-next'
+import {ArrowLeft, Check, Video} from 'lucide-vue-next'
 
 const config = useRecordConfigStore();
 const route = useStorageRoute('content-script');
