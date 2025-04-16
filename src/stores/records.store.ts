@@ -1,16 +1,39 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Record } from '@/types/record'
-import { supabase } from '@/lib/supabase'
+import { Config } from '@/utils/config'
 import { useAuthStore } from '@/stores/auth.store'
-import {notify} from "@/utils/notifications";
+import { notify } from "@/utils/notifications"
 
 export const useRecordsStore = defineStore('records', () => {
   const records = ref<Record[]>([])
   const isLoading = ref(false)
   const authStore = useAuthStore()
 
-  // Fetch records from Supabase
+  // Helper function for API requests
+  const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+    if (!authStore.token) {
+      throw new Error('Authentication required')
+    }
+
+    const response = await fetch(`${Config.OAUTH_URL}/api${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`,
+        ...options.headers
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      throw new Error(error.message || 'API request failed')
+    }
+
+    return response.json()
+  }
+
+  // Fetch records from API
   async function fetchRecords() {
     isLoading.value = true
     try {
@@ -23,19 +46,9 @@ export const useRecordsStore = defineStore('records', () => {
         return
       }
       
-      const { data, error } = await supabase
-        .from('records')
-        .select('*')
-        .eq('user_id', authStore.user?.id)
-        .order('created_at', { ascending: false })
-
-      console.log(data, error)
-
-      if (error) throw error
-      
-      if (data) {
-        records.value = data
-      }
+      // Using the route defined in api.php: Route::get('/', [RecordController::class, 'index'])
+      const data = await apiRequest('/v1/records')
+      records.value = data
     } catch (error) {
       console.error('Error fetching records:', error)
       notify({
@@ -48,25 +61,23 @@ export const useRecordsStore = defineStore('records', () => {
     }
   }
 
-  // Search records in Supabase
+  // Search records in API
   async function searchRecords(query: string) {
     isLoading.value = true
     try {
       if (!authStore.isAuthenticated) return
       
-      const { data, error } = await supabase
-        .from('records')
-        .select('*')
-        .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
-        .order('createdAt', { ascending: false })
-      
-      if (error) throw error
-      
-      if (data) {
-        records.value = data
-      }
+      // Since there's no specific search endpoint in api.php, we'll assume search is handled by a query parameter
+      // to the index method. You may need to implement this in your RecordController.
+      const data = await apiRequest(`/v1/records?search=${encodeURIComponent(query)}`)
+      records.value = data
     } catch (error) {
       console.error('Error searching records:', error)
+      notify({
+        title: 'Error',
+        message: 'Failed to search records',
+        type: 'error'
+      })
     } finally {
       isLoading.value = false
     }
@@ -78,21 +89,18 @@ export const useRecordsStore = defineStore('records', () => {
     
     isLoading.value = true
     try {
-      const { data, error } = await supabase
-        .from('records')
-        .insert(record)
-        .select()
+      // Using the route defined in api.php: Route::post('/', [RecordController::class, 'store'])
+      const data = await apiRequest('/v1/records', {
+        method: 'POST',
+        body: JSON.stringify(record)
+      })
       
-      if (error) throw error
-      
-      if (data && data[0]) {
-        records.value.unshift(data[0])
-        notify({
-          title: 'Success',
-          message: 'Record added successfully',
-          type: 'success'
-        })
-      }
+      records.value.unshift(data)
+      notify({
+        title: 'Success',
+        message: 'Record added successfully',
+        type: 'success'
+      })
     } catch (error) {
       console.error('Error adding record:', error)
       notify({
@@ -111,12 +119,11 @@ export const useRecordsStore = defineStore('records', () => {
     
     isLoading.value = true
     try {
-      const { error } = await supabase
-        .from('records')
-        .delete()
-        .eq('id', id)
-      
-      if (error) throw error
+      // Note: There's no delete route defined in api.php yet
+      // You'll need to add a route like: Route::delete('/{id}', [RecordController::class, 'destroy'])
+      await apiRequest(`/v1/records/${id}`, {
+        method: 'DELETE'
+      })
       
       records.value = records.value.filter(r => r.id !== id)
       notify({
@@ -136,8 +143,8 @@ export const useRecordsStore = defineStore('records', () => {
     }
   }
 
-  // Sort records by title
-  async function sortRecords() {
+  // Sort records by title (client-side)
+  function sortRecords() {
     if (!authStore.isAuthenticated) return
     
     records.value.sort((a, b) => a.title.localeCompare(b.title))

@@ -58,7 +58,7 @@ const props = defineProps<{
   variables: CustomVariable[]
 }>()
 
-const router = useRouter()
+const router = useStorageRoute('content-script')
 
 let getType = (type: string) => {
   return {
@@ -69,6 +69,6 @@ let getType = (type: string) => {
 }
 
 function goToVariable(id: string) {
-  router.push(`/config/variables/${id}`)
+  router.go(`config.variables/${id}`)
 }
 </script>

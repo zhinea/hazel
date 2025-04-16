@@ -1,69 +1,56 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {  GithubIcon } from 'lucide-vue-next';
+import { GithubIcon } from 'lucide-vue-next';
 import GoogleIcon from '@/assets/brands/google/icon.svg'
+import { Config } from '@/utils/config';
+import { useAuthStore } from '@/stores/auth.store';
 
+const authStore = useAuthStore();
 const loading = ref(false);
-const error   = ref<string | null>(null);
+const error = ref<string | null>(null);
 
 function launchAuthFlow(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
     chrome.identity.launchWebAuthFlow(
-        { url, interactive: true },
-        (redirectUrl) => {
-          if (chrome.runtime.lastError || !redirectUrl) {
-            reject(chrome.runtime.lastError?.message || 'Authentication failed');
-          } else {
-            resolve(redirectUrl);
-          }
+      { url, interactive: true },
+      (redirectUrl) => {
+        if (chrome.runtime.lastError || !redirectUrl) {
+          reject(chrome.runtime.lastError?.message || 'Authentication failed');
+        } else {
+          resolve(redirectUrl);
         }
+      }
     );
   });
 }
 
 async function signInWithProvider(provider: 'google' | 'github') {
   loading.value = true;
-  error.value   = null;
+  error.value = null;
 
   try {
     const redirectTo = chrome.identity.getRedirectURL();
-    const { data, error: authError } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo,
-        skipBrowserRedirect: true
-      },
-    });
-    if (authError) throw authError;
-    if (!data?.url) throw new Error('No OAuth URL returned');
-
-    // launch the Chrome extension OAuth window
-    const redirectUrl = await launchAuthFlow(data.url);
-
-    // pull tokens out of the hash or query
+    
+    // Launch the Chrome extension OAuth window
+    const redirectUrl = await launchAuthFlow(`${Config.OAUTH_URL}/webflow/${provider}?source=extension&redirect_uri=${redirectTo}`);
+    
+    // Pull token out of the hash or query
     const hashOrQuery = redirectUrl.split('#')[1] || redirectUrl.split('?')[1] || '';
-    const params      = new URLSearchParams(hashOrQuery.replace(/^#/, ''));
-    const access_token  = params.get('access_token');
-    const refresh_token = params.get('refresh_token');
-
-    if (!access_token || !refresh_token) {
-      throw new Error('Missing access or refresh token');
+    const params = new URLSearchParams(hashOrQuery.replace(/^#/, ''));
+    const token = params.get('token');
+    
+    if (!token) {
+      throw new Error('Authentication failed: No token received');
     }
-
-    // set the Supabase session
-    const { error: sessionError } = await supabase.auth.setSession({
-      access_token,
-      refresh_token,
-    });
-    if (sessionError) throw sessionError;
-
+    
+    // Set the token in the auth store
+    await authStore.setToken(token);
+    
   } catch (err) {
-    console.error('Sign‑in error:', err);
+    console.error('Sign-in error:', err);
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
     loading.value = false;

@@ -5,6 +5,15 @@ import ConfigView from './pages/config/index.vue'
 import ConfigCustomVariables from './pages/config/custom-variables.vue'
 
 const route = useStorageRoute('content-script');
+const config = useRecordConfigStore();
+
+onMounted(async () => {
+  await config.load();
+
+})
+// config.$subscribe((state) => {
+//   // config.save()
+// }, { detached: true })
 
 </script>
 

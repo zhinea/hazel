@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/browser-recorder.iml" filepath="$PROJECT_DIR$/.idea/browser-recorder.iml" />
+      <module fileurl="file://$USER_HOME$/projects/hazel/oseania/.idea/oseania.iml" filepath="$USER_HOME$/projects/hazel/oseania/.idea/oseania.iml" />
     </modules>
   </component>
 </project>

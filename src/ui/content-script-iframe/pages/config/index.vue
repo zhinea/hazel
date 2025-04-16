@@ -43,7 +43,7 @@
                   <p class="text-xs text-gray-400 mt-1">{{ option.description }}</p>
                 </div>
                 <Switch
-                    v-model:checked="config.options[option.id]"
+                    v-model:checked="config.options[option.id].meta.value"
                 />
               </div>
             </div>
@@ -58,7 +58,7 @@
                 <p class="text-xs text-gray-400 mt-1">{{ option.description }}</p>
               </div>
               <Switch
-                  v-model:checked="config.options[option.id]"
+                  v-model:checked="config.options[option.id].meta.value"
               />
             </div>
           </template>
@@ -94,41 +94,46 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import CustomVariablesList from '@/components/contentScript/CustomVariableList.vue'
 import {ArrowLeft, Check, Video} from 'lucide-vue-next'
+import {RecordOption} from "@/types/record";
 
 const config = useRecordConfigStore();
 const route = useStorageRoute('content-script');
 
+console.log(config.options)
+
 // Define options as an array for dynamic rendering
 const options = ref([
   {
-    id: 'bypassCaptcha',
+    id: RecordOption.BYPASS_CAPTCHA,
     title: 'Bypass Captcha',
     description: 'Automatically solve and bypass captchas',
     defaultValue: false,
     featured: false,
   },
   {
-    id: 'xhrIntercept',
+    id: RecordOption.XHR_INTERCEPT,
     title: 'Intercept XHR & Fetch',
     description: 'Intercept and modify network requests',
     defaultValue: false,
     featured: false,
   },
   {
-    id: 'multiTab',
+    id: RecordOption.MULTI_TAB,
     title: 'Multi-tab',
     description: 'Watch everything even when you switch tabs',
     defaultValue: false,
     featured: false,
   },
   {
-    id: 'magicScrape',
+    id: RecordOption.MAGIC_SCRAPE,
     title: 'Magic Scrape',
     description: 'Automatically extract data from web pages using AI',
     defaultValue: false,
     featured: true,
   },
 ]);
+
+console.log(config.options)
 
 function handleAddVariable() {
   route.go('config.custom-variable')

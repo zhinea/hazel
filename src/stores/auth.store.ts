@@ -1,44 +1,74 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { supabase } from '@/lib/supabase';
-import type { User, Session } from '@supabase/supabase-js';
+import { Config } from '@/utils/config';
+import type { User } from '@/types/user';
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
-  const session = ref<Session | null>(null);
+  const token = ref<string | null>(null);
   const loading = ref(true);
 
-  const isAuthenticated = computed(() => !!user.value);
+  const isAuthenticated = computed(() => !!token.value);
 
   // Initialize the auth state
   const initialize = async () => {
     loading.value = true;
     
-    // Get the current session
-    const { data } = await supabase.auth.getSession();
-    session.value = data.session;
-    user.value = data.session?.user ?? null;
-    
-    // Set up auth state change listener
-    supabase.auth.onAuthStateChange((_, newSession) => {
-      session.value = newSession;
-      user.value = newSession?.user ?? null;
-    });
+    // Check for token in localStorage
+    const storedToken = localStorage.getItem('auth_token');
+    if (storedToken) {
+      token.value = storedToken;
+      await fetchUserProfile();
+    }
     
     loading.value = false;
   };
 
+  // Fetch user profile from API
+  const fetchUserProfile = async () => {
+    if (!token.value) return;
+    
+    try {
+      const response = await fetch(`${Config.OAUTH_URL}/api/me`, {
+        headers: {
+          'Authorization': `Bearer ${token.value}`
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        user.value = userData;
+      } else {
+        // If token is invalid, clear it
+        token.value = null;
+        localStorage.removeItem('auth_token');
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  // Set authentication token
+  const setToken = async (newToken: string) => {
+    token.value = newToken;
+    localStorage.setItem('auth_token', newToken);
+    await fetchUserProfile();
+  };
+
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) console.error('Error signing out:', error);
+    token.value = null;
+    user.value = null;
+    localStorage.removeItem('auth_token');
   };
 
   return {
     user,
-    session,
+    token,
     loading,
     isAuthenticated,
     initialize,
+    setToken,
+    fetchUserProfile,
     signOut
   };
 });

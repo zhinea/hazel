@@ -1,10 +1,32 @@
 
 export interface Record {
     id: string
-    title: string
-    description: string
-    createdAt: Date
+    name: string
+    description?: string
+    options: RecordOptions
+    createdAt?: Date
     color?: string
+}
+
+export interface RecordOptionValue <T extends 'boolean' | 'string' | 'number'>{
+    type: T,
+    meta:  {
+        value?: T extends 'boolean' ? boolean : T extends 'string' ? string : T extends 'number' ? number : never
+    }
+}
+
+export const RecordOption = {
+    BYPASS_CAPTCHA: 'bypassCaptcha',
+    XHR_INTERCEPT: 'xhrIntercept',
+    MULTI_TAB: 'multiTab',
+    MAGIC_SCRAPE: 'magicScrape',
+}
+
+export interface RecordOptions {
+    [RecordOption.BYPASS_CAPTCHA]: RecordOptionValue<'boolean'>,
+    [RecordOption.XHR_INTERCEPT]: RecordOptionValue<'boolean'>,
+    [RecordOption.MULTI_TAB]: RecordOptionValue<'boolean'>,
+    [RecordOption.MAGIC_SCRAPE]: RecordOptionValue<'boolean'>,
 }
 
 export const CustomVariableTypes = {
