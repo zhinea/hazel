@@ -12,6 +12,7 @@ declare module 'vue' {
     AppHeader: typeof import('./../components/AppHeader.vue')['default']
     Auth: typeof import('./../components/Auth.vue')['default']
     ContentScriptCustomVariableList: typeof import('./../components/contentScript/CustomVariableList.vue')['default']
+    ContentScriptTestSwitch: typeof import('./../components/contentScript/TestSwitch.vue')['default']
     DisplayError: typeof import('./../components/state/DisplayError.vue')['default']
     LoadingSpinner: typeof import('./../components/state/LoadingSpinner.vue')['default']
     LocaleSwitch: typeof import('./../components/LocaleSwitch.vue')['default']

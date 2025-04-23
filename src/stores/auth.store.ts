@@ -5,7 +5,7 @@ import type { User } from '@/types/user';
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
-  const token = ref<string | null>(null);
+  const token = ref<string | null>(localStorage.getItem('auth_token'));
   const loading = ref(true);
 
   const isAuthenticated = computed(() => !!token.value);

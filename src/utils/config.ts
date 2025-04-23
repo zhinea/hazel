@@ -4,6 +4,7 @@ export const Config = {
     SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
 
     OAUTH_URL: import.meta.env.VITE_OAUTH_URL || '',
+    SERVICE_URL: import.meta.env.VITE_SERVICE_URL || ''
 }
 
 export function env(key: string, defaultValue?: string): string {

@@ -25,6 +25,12 @@ export const useRecordConfigStore = defineStore('config', {
                     value: false
                 }
             },
+            magicScrape: {
+                type: 'boolean',
+                meta: {
+                    value: false
+                }
+            },
         } as RecordOptions,
         variables: [] as CustomVariable[],
         events: [] as IEvent[],
@@ -43,18 +49,16 @@ export const useRecordConfigStore = defineStore('config', {
             console.log(this.variables)
         },
         save(){
-            (async() => {
-                await chrome.storage.local.set({
-                    'record-config': {
-                        name: this.name,
-                        options: this.options,
-                        variables: this.variables,
-                        events: this.events
-                    }
-                })
-                console.log(await chrome.storage.local.get('record-config'))
-            })();
+            chrome.storage.local.set({
+                'record-config': {
+                    name: this.name,
+                    options: this.options,
+                    variables: this.variables,
+                    events: this.events
+                }
+            }).then(() => {
+                console.log("Variables saved.")
+            });
         }
-
     }
 })

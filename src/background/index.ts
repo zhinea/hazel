@@ -1,6 +1,7 @@
 import {BasicResponseServer, IncommingMessage} from "@/types/message";
 import {StorageService} from "@/background/services/storage.service";
 import {PopupRoute} from "@/background/routes/popup.route";
+import {RecorderRoute} from "@/background/routes/recorder.route";
 
 chrome.runtime.onMessage.addListener( (message: IncommingMessage, sender, sendResponse: (res: any) => void) => {
 

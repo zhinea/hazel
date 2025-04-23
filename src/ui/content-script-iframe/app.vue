@@ -10,6 +10,7 @@ const config = useRecordConfigStore();
 onMounted(async () => {
   await config.load();
 
+  console.log(config);
 })
 // config.$subscribe((state) => {
 //   // config.save()

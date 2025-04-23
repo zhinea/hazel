@@ -25,7 +25,7 @@
         <div class="flex justify-between items-center">
           <div class="flex-1 min-w-0">
             <h3 class="text-base font-medium text-gray-200">
-              {{ record.title }}
+              {{ record.name }}
             </h3>
             <p class="text-sm text-gray-500">
               {{ formatDistanceToNow(record.createdAt, { addSuffix: true }) }}

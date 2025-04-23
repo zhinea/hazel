@@ -10,9 +10,11 @@
         <Button
             size="sm"
             class="dark"
+            @click="startRecording"
+            :disabled="isLoading"
         >
           <Video class="h-4 w-4" />
-          Start record
+          {{ isLoading ? 'Starting...' : 'Start record' }}
         </Button>
       </div>
     </header>
@@ -37,7 +39,9 @@
           <template v-for="(option, index) in options" :key="index">
             <!-- Special styling for Multi-tab option -->
             <div v-if="option.featured" class="animated-border-wrapper">
-              <div class="animated-border-content flex items-center justify-between py-3 px-4 space-x-1">
+              <div 
+                class="animated-border-content flex items-center justify-between py-3 px-4 space-x-1 cursor-pointer"
+              >
                 <div>
                   <h3 class="text-sm font-medium text-gray-200">{{ option.title }}</h3>
                   <p class="text-xs text-gray-400 mt-1">{{ option.description }}</p>
@@ -51,7 +55,7 @@
             <!-- Regular styling for other options -->
             <div
                 v-else
-                class="flex items-center justify-between py-3 border-b border-gray-800 space-x-1 px-1"
+                class="flex items-center justify-between py-3 border-b border-gray-800 space-x-1 px-1 cursor-pointer"
             >
               <div>
                 <h3 class="text-sm font-medium text-gray-200">{{ option.title }}</h3>
@@ -87,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -95,11 +99,17 @@ import { Label } from '@/components/ui/label'
 import CustomVariablesList from '@/components/contentScript/CustomVariableList.vue'
 import {ArrowLeft, Check, Video} from 'lucide-vue-next'
 import {RecordOption} from "@/types/record";
+import TestSwitch from '@/components/contentScript/TestSwitch.vue'
+import { Config } from '@/utils/config'
+import { useAuthStore } from '@/stores/auth.store'
+import { notify } from "@/utils/notifications"
+import { useRecordsStore } from '@/stores/records.store'
 
 const config = useRecordConfigStore();
+const recordsStore = useRecordsStore();
 const route = useStorageRoute('content-script');
-
-console.log(config.options)
+const authStore = useAuthStore();
+const isLoading = ref(false);
 
 // Define options as an array for dynamic rendering
 const options = ref([
@@ -133,10 +143,63 @@ const options = ref([
   },
 ]);
 
-console.log(config.options)
 
 function handleAddVariable() {
   route.go('config.custom-variable')
+}
+
+async function startRecording() {
+  if (!config.name) {
+    notify({
+      title: 'Error',
+      message: 'Please provide a name for the record',
+      type: 'error'
+    });
+    return;
+  }
+
+  isLoading.value = true;
+  try {
+    if (!authStore.isAuthenticated) {
+      notify({
+        title: 'Authentication Required',
+        message: 'Please log in to create a record',
+        type: 'warning'
+      });
+      isLoading.value = false;
+      return;
+    }
+
+    const recordData = {
+      name: config.name,
+      description: config.description || '',
+      options: config.options,
+      variables: config.variables
+    };
+
+    const data = await recordsStore.addRecord(recordData);
+    
+    // Save record ID for reference
+    chrome.storage.local.set({ 'current-record-id': data.id });
+    
+    // Start the actual recording process
+    chrome.runtime.sendMessage({ 
+      action: 'startRecording',
+      recordId: data.id 
+    });
+    
+    // Close the config menu or transition to recording state
+    // Depending on your UX flow
+  } catch (error: unknown) {
+    console.error('Error creating record:', error);
+    notify({
+      title: 'Error',
+      message: error instanceof Error ? error.message : 'Failed to create record',
+      type: 'error'
+    });
+  } finally {
+    isLoading.value = false;
+  }
 }
 
 </script>

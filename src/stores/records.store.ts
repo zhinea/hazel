@@ -84,32 +84,35 @@ export const useRecordsStore = defineStore('records', () => {
   }
 
   // Add a new record
-  async function addRecord(record: Record) {
+  async function addRecord(record: Omit<Record, 'id'>) {
     if (!authStore.isAuthenticated) return
     
-    isLoading.value = true
+    isLoading.value = true;
     try {
       // Using the route defined in api.php: Route::post('/', [RecordController::class, 'store'])
       const data = await apiRequest('/v1/records', {
         method: 'POST',
         body: JSON.stringify(record)
-      })
+      });
       
-      records.value.unshift(data)
+      records.value.unshift(data);
       notify({
         title: 'Success',
         message: 'Record added successfully',
         type: 'success'
-      })
+      });
+      
+      return data;
     } catch (error) {
-      console.error('Error adding record:', error)
+      console.error('Error adding record:', error);
       notify({
         title: 'Error',
         message: 'Failed to add record',
         type: 'error'
-      })
+      });
+      throw error;
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
   }
 
@@ -143,11 +146,11 @@ export const useRecordsStore = defineStore('records', () => {
     }
   }
 
-  // Sort records by title (client-side)
+  // Sort records by name (client-side)
   function sortRecords() {
     if (!authStore.isAuthenticated) return
     
-    records.value.sort((a, b) => a.title.localeCompare(b.title))
+    records.value.sort((a, b) => a.name.localeCompare(b.name))
   }
 
   return {
