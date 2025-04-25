@@ -2,6 +2,13 @@
 
 ![image](https://github.com/user-attachments/assets/f7e79885-5ae3-4253-b00e-806dc089cc0e)
 
+## Demo
+
+
+https://github.com/user-attachments/assets/1a659427-bfd9-4f3b-bdd8-1e9c583a9e6f
+
+
+
 
 ## ✨ Automate Your Browser Like Magic! ✨
 
